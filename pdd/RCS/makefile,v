@@ -1,0 +1,212 @@
+head	1.6;
+access;
+symbols
+	release3:1.6
+	release2:1.4
+	release1:1.4;
+locks
+	rommel:1.6; strict;
+comment	@# @;
+
+
+1.6
+date	94.03.09.16.53.57;	author rommel;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	94.03.04.14.40.58;	author rommel;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	94.02.07.19.28.47;	author rommel;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	94.02.06.21.55.15;	author rommel;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	94.02.02.13.20.27;	author rommel;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	94.01.09.20.24.50;	author rommel;	state Exp;
+branches;
+next	;
+
+
+desc
+@Physical device driver for VASPI.
+@
+
+
+1.6
+log
+@added debug utility
+@
+text
+@# Makefile
+
+# virtual ASPI driver for OS/2 2.x
+# (C) 1994 ARS Computer und Consulting GmbH
+
+# Author:  Kai Uwe Rommel <rommel@@jonas>
+# Created: Wed Dec 22 1993
+
+# $Id: makefile,v 1.5 1994/03/04 14:40:58 rommel Exp rommel $
+# $Revision: 1.5 $
+
+# $Log: makefile,v $
+# Revision 1.5  1994/03/04 14:40:58  rommel
+# changed DDK locations
+#
+# Revision 1.4  1994/02/07 19:28:47  rommel
+# bug fix in debugging code
+#
+# Revision 1.3  1994/02/06 21:55:15  rommel
+# first release
+#
+# Revision 1.2  1994/02/02 13:20:27  rommel
+# beta release
+#
+# Revision 1.1  1994/01/09 20:24:50  rommel
+# Initial revision
+
+INC = ..\..\ddk\inc
+H = ..\..\ddk\h
+LIB = ..\..\ddk\lib;d:\msc\lib
+
+#AS = masm -MX -T -Z -I. -I$(INC)
+AS = ml -nologo -Cp -Zm -I. -I$(INC)
+CC = cl -nologo -Zp -Oegcltaz -G2s -Answ -W3 -I. -I$(H)
+LINK = link /nologo /map /nod /exepack /packd /a:16 /far
+MAPSYM = mapsym
+
+OBJS = vaspiseg.obj vaspidd.obj code.obj
+LIBS = dhcalls.lib addcalls.lib os2286.lib slibcep.lib
+DEF  = vaspidd.def
+
+.asm.obj:
+	$(AS) -c $*.asm
+.c.obj:
+	$(CC) -c $*.c
+
+all: vaspidd.sys stamp.exe debug.exe
+
+vaspidd.sys: $(OBJS) $(DEF) makefile
+	$(LINK) $(LFLAGS) $(OBJS),$*.sys,$*.map,$(LIBS),$(DEF);
+	$(MAPSYM) $*.map
+
+stamp.exe: stamp.c code.obj
+	cl -O -o $@@ stamp.c code.obj -Lp -link /pm:vio
+
+debug.exe: debug.c
+	cl -O -o $@@ debug.c -Lp -link /pm:vio
+
+# end of Makefile
+@
+
+
+1.5
+log
+@changed DDK locations
+@
+text
+@d9 2
+a10 2
+# $Id: makefile,v 1.4 1994/02/07 19:28:47 rommel Exp rommel $
+# $Revision: 1.4 $
+d13 3
+d47 1
+a47 1
+all: vaspidd.sys stamp.exe
+d55 3
+@
+
+
+1.4
+log
+@bug fix in debugging code
+@
+text
+@d9 2
+a10 2
+# $Id: makefile,v 1.3 1994/02/06 21:55:15 rommel Exp rommel $
+# $Revision: 1.3 $
+d13 3
+d25 3
+a27 3
+INC = ..\ddk\inc
+H = ..\ddk\h
+LIB = ..\ddk\lib;d:\msc\lib
+@
+
+
+1.3
+log
+@first release
+@
+text
+@d9 2
+a10 2
+# $Id: makefile,v 1.2 1994/02/02 13:20:27 rommel Exp rommel $
+# $Revision: 1.2 $
+d13 3
+d34 1
+d43 2
+a44 2
+vaspidd.sys: $(OBJS) makefile
+	$(LINK) $(LFLAGS) $(OBJS),$*.sys,$*.map,$(LIBS),$*.def;
+@
+
+
+1.2
+log
+@beta release
+@
+text
+@d9 2
+a10 2
+# $Id: makefile,v 1.1 1994/01/09 20:24:50 rommel Exp rommel $
+# $Revision: 1.1 $
+d13 3
+d21 1
+a21 1
+LIB = ..\ddk\lib
+d23 2
+a24 1
+AS = masm -MX -T -Z -I. -I$(INC)
+d29 2
+a30 3
+LIBS = $(LIB)\dhcalls.lib $(LIB)\addcalls.lib $(LIB)\os2286.lib
+
+OBJS = vaspiseg.obj vaspidd.obj 
+d33 1
+a33 1
+	$(AS) $*.asm,$*.obj;
+d37 3
+a39 1
+vaspidd.sys: $(OBJS) $(LIBS) makefile
+d42 3
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d1 1
+a1 2
+# $Id$
+# $Revision$
+d3 12
+a14 1
+# $Log$
+d37 2
+@

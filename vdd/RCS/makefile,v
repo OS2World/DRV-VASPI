@@ -1,0 +1,256 @@
+head	1.6;
+access;
+symbols
+	release3:1.5
+	release2:1.4
+	release1:1.4;
+locks
+	rommel:1.6; strict;
+comment	@# @;
+
+
+1.6
+date	94.09.14.12.15.47;	author rommel;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	94.03.09.17.35.31;	author rommel;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	94.02.02.13.22.39;	author rommel;	state release1;
+branches;
+next	1.3;
+
+1.3
+date	94.01.09.20.19.53;	author rommel;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	93.12.22.13.05.42;	author rommel;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	93.12.20.16.16.41;	author rommel;	state Exp;
+branches;
+next	;
+
+
+desc
+@virtual ASPI driver for OS/2 2.x
+@
+
+
+1.6
+log
+@added real stub for specific DOS sessions
+@
+text
+@# Makefile
+
+# virtual ASPI driver for OS/2 2.x
+# (C) 1994 ARS Computer und Consulting GmbH
+
+# Author:  Kai Uwe Rommel <rommel@@jonas>
+# Created: Mon Dec 20 1993
+
+# $Id: makefile,v 1.5 1994/03/09 17:35:31 rommel Exp rommel $
+# $Revision: 1.5 $
+
+# $Log: makefile,v $
+# Revision 1.5  1994/03/09 17:35:31  rommel
+# simplified rules
+#
+# Revision 1.4  1994/02/02 13:22:39  rommel
+# beta release
+#
+# Revision 1.3  1994/01/09 20:19:53  rommel
+# first somewhat working version
+#
+# Revision 1.2  1993/12/22 13:05:42  rommel
+# Restructured, stub DD added.
+#
+# Revision 1.1  1993/12/20  16:16:41  rommel
+# Initial revision
+
+OBJ = main.obj aspi.obj stubdata.obj
+LIBS = vdh.lib
+
+CC32 = icc -Q -Sm -Ss -Sp1 -W2 -Rn -Gr -Id:\dev\include\c\vdd
+LD32 = link386 /nologo /align:16 /map:full
+LD16 = link /nologo
+AS = masm -Ml -p -t -Z -Id:\dev\include\asm
+
+.SUFFIXES: .c .obj
+
+.c.obj:
+	$(CC32) -c $<
+
+all: vaspi.sys vaspistb.sys
+
+vaspi.sys: $(OBJ) vaspi.def
+	$(LD32) $(OBJ),$@@,$*.map,$(LIBS),vaspi.def;
+	mapsym $*.map
+
+vaspistb.sys: stub.obj
+	$(LD16) stub.obj,stub.exe;
+	exe2bin stub.exe $@@ /q
+	del stub.exe
+
+aspi.obj: aspi.c vaspi.h
+main.obj: main.c vaspi.h stub.h
+
+stub.obj: stub.asm
+	$(AS) stub.asm,stub.obj,stub.lst;
+
+stub.h: stubdata.asm
+
+stubdata.asm: stub.obj code2dat.cmd
+	code2dat stub.lst $@@
+
+stubdata.obj: stubdata.asm
+	$(AS) stubdata.asm,stubdata.obj;
+
+clean:
+	rm -f $(OBJ) stub.obj stub.lst stub.h stubdata.asm \
+		vaspi.sys vaspi.map vaspi.sym vaspistb.sys
+
+# end of Makefile
+@
+
+
+1.5
+log
+@simplified rules
+@
+text
+@d9 2
+a10 2
+# $Id: makefile,v 1.4 1994/02/02 13:22:39 rommel release1 rommel $
+# $Revision: 1.4 $
+d13 3
+a27 2
+NAME = vaspi
+
+a28 1
+DEF = $(NAME).def
+d31 3
+a33 2
+CC = icc -Q -Sm -Ss -Sp1 -W2 -Rn -Gr -Id:\dev\include\c\vdd
+LD = link386 /nologo /align:16 /map:full
+d39 1
+a39 1
+	$(CC) -c $<
+d41 1
+a41 1
+all: $(NAME).sys
+d43 2
+a44 2
+$(NAME).sys: $(OBJ) $(DEF)
+	$(LD) $(OBJ), $@@, $*.map, $(LIBS), $(DEF);
+d47 10
+a56 2
+aspi.obj: aspi.c $(NAME).h
+main.obj: main.c $(NAME).h stub.h
+d60 1
+a60 2
+stubdata.asm: stub.asm code2dat.cmd
+	$(AS) stub.asm,nul,stub.lst;
+d67 2
+a68 2
+	rm -f $(OBJ) stub.lst stub.h stubdata.asm \
+		$(NAME).sys $(NAME).map $(NAME).sym
+@
+
+
+1.4
+log
+@beta release
+@
+text
+@d9 2
+a10 2
+# $Id: makefile,v 1.3 1994/01/09 20:19:53 rommel Exp rommel $
+# $Revision: 1.3 $
+d13 3
+d40 1
+a40 1
+all: $(NAME).sys $(NAME).sym
+a43 4
+
+$(NAME).map: $(NAME).sys
+
+$(NAME).sym: $(NAME).map
+a48 3
+stub.lst: stub.asm
+	$(AS) stub.asm,nul,stub.lst;
+
+d51 2
+a52 1
+stubdata.asm: stub.lst code2dat.cmd
+@
+
+
+1.3
+log
+@first somewhat working version
+@
+text
+@d2 1
+a2 1
+#
+d4 2
+a5 2
+# (C) 1993 ARS Computer und Consulting GmbH
+#
+d9 2
+a10 1
+# $Id: makefile,v 1.2 1993/12/22 13:05:42 rommel Exp rommel $
+d13 3
+a20 1
+#
+@
+
+
+1.2
+log
+@Restructured, stub DD added.
+@
+text
+@d9 1
+a9 1
+# $Id: makefile,v 1.1 1993/12/20 16:16:41 rommel Exp rommel $
+d12 3
+d25 1
+a25 1
+CC = icc -Q -Sm -Ss -W2 -Rn -Gr -Id:\dev\include\c\vdd
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d9 1
+a9 1
+# $Id$
+d11 4
+a14 1
+# $Log$
+d18 1
+a18 1
+OBJ = init.obj main.obj
+d20 1
+a20 1
+LIBS = d:\dev\lib\vdh.lib
+d24 3
+d41 17
+a57 2
+init.obj: init.c $(NAME).h
+main.obj: main.c $(NAME).h
+@

@@ -1,0 +1,88 @@
+head	1.3;
+access;
+symbols;
+locks; strict;
+comment	@# @;
+
+
+1.3
+date	94.09.14.12.24.15;	author rommel;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	94.05.25.11.11.58;	author rommel;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	94.05.25.11.08.55;	author rommel;	state Exp;
+branches;
+next	;
+
+
+desc
+@Virtual ASPI driver for OS/2 2.x
+@
+
+
+1.3
+log
+@added VMBOOT stub, correct \OS2\MDOS location for DOS modules
+@
+text
+@* Virtual ASPI driver for OS/2 2.x
+* (C) 1994 ARS Computer und Consulting GmbH
+
+* device driver installation profile
+
+* $Id: vaspi.ddp,v 1.2 1994/05/25 11:11:58 rommel Exp rommel $
+* $Revision: 1.2 $
+
+:TITLE
+VASPI, Virtual ASPI driver, (C) 1994 ARS GmbH
+
+:CONFIG
+BASEDEV=OS2ASPI.DMD
+DEVICE=\OS2\VASPIDD.SYS
+DEVICE=\OS2\MDOS\VASPI.SYS
+
+:FILES
+VASPIDD.SYS \OS2\VASPIDD.SYS
+VASPI.SYS \OS2\MDOS\VASPI.SYS
+VASPISTB.SYS \OS2\MDOS\VASPISTB.SYS
+WINASPI.DLL \OS2\MDOS\WINOS2\SYSTEM\WINASPI.DLL
+VASPI.INF \OS2\BOOK\VASPI.INF
+ASPI.EXE \OS2\MDOS\ASPI.EXE
+ASPI2.EXE \OS2\ASPI2.EXE
+@
+
+
+1.2
+log
+@added comments
+@
+text
+@d6 2
+a7 2
+* $Id$
+* $Revision$
+d15 1
+a15 1
+DEVICE=\OS2\VASPI.SYS
+d19 2
+a20 1
+VASPI.SYS \OS2\VASPI.SYS
+d23 1
+a23 1
+ASPI.EXE \OS2\ASPI.EXE
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d1 8
+@

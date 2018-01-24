@@ -1,0 +1,129 @@
+
+ VASPIDD
+
+ Start     Length     Name                   Class
+ 0001:0000 00020H     HEADER                 DATA
+ 0001:0020 00280H     _DATA                  DATA
+ 0001:02A0 00000H     CONST                  CONST
+ 0001:02A0 00000H     _BSS                   BSS
+ 0001:02A0 0000EH     c_common               BSS
+ 0001:02B0 00000H     EDATA                  BSS
+ 0002:0000 001F6H     CODE                   CODE
+ 0002:01F8 008CDH     _TEXT                  CODE
+ 0002:0AC8 00000H     ETEXT                  CODE
+
+ Origin   Group
+ 0002:0   CGROUP
+ 0001:0   DGROUP
+
+  Address         Publics by Name
+
+ 0002:00A4       DEVHELP_ATTACHDD
+ 0002:00C4       DevHelp_DynamicAPI
+ 0002:002C       DEVHELP_LOCK
+ 0002:00F0       DEVHELP_PROCBLOCK
+ 0002:011B       DEVHELP_PROCRUN
+ 0002:0059       DEVHELP_UNLOCK
+ 0002:007C       DEVHELP_VERIFYACCESS
+ 0002:0000       DEVHELP_VIRTTOPHYS
+ 0002:0144       DHRET_0
+ 0002:0186       DHRET_10
+ 0002:0194       DHRET_12
+ 0002:01A2       DHRET_14
+ 0002:01B0       DHRET_16
+ 0002:01BE       DHRET_18
+ 0002:014E       DHRET_2
+ 0002:01CC       DHRET_20
+ 0002:01DA       DHRET_22
+ 0002:01E8       DHRET_24
+ 0002:015C       DHRET_4
+ 0002:016A       DHRET_6
+ 0002:0178       DHRET_8
+ 0000:0000  Imp  DOSPUTMESSAGE        (MSG.1)
+ 0002:04BE       _ASPI_Post
+ 0001:02AC       _bDemoVersion
+ 0001:00C4       _CommandName
+ 0001:01C4       _Copyright
+ 0001:0242       _CrLf
+ 0002:0282       _DebugASPI
+ 0001:00D0       _DebugPort
+ 0002:03A8       _DebugResult
+ 0001:0246       _DemoVer
+ 0001:00C0       _Device_Help
+ 0001:019A       _DevName
+ 0002:0A41       _docode
+ 0002:04DC       _DriverEntry
+ 0002:0A18       _Encode
+ 0001:01F2       _Fail
+ 0002:0252       _HexString
+ 0002:0934       _Init
+ 0002:08A0       _Legal
+ 0002:0A6A       _makepw
+ 0001:021A       _NoASPI
+ 0001:02A0       _OS2ASPI
+ 0002:040A       _PhysicalPointer
+ 0002:0220       _PutMessage
+ 0002:0204       _SendChar
+ 0001:026A       _Serial
+ 0001:025C       _SerialNum
+ 0001:02B0       __acrtused
+ 0002:0A9C       __aNFaulshr
+ 0002:0ABA       __aNulshr
+ 0001:02B0       __edata
+ 0002:0AC8       __etext
+
+  Address         Publics by Value
+
+ 0000:0000  Imp  DOSPUTMESSAGE        (MSG.1)
+ 0001:00C0       _Device_Help
+ 0001:00C4       _CommandName
+ 0001:00D0       _DebugPort
+ 0001:019A       _DevName
+ 0001:01C4       _Copyright
+ 0001:01F2       _Fail
+ 0001:021A       _NoASPI
+ 0001:0242       _CrLf
+ 0001:0246       _DemoVer
+ 0001:025C       _SerialNum
+ 0001:026A       _Serial
+ 0001:02A0       _OS2ASPI
+ 0001:02AC       _bDemoVersion
+ 0001:02B0       __acrtused
+ 0001:02B0       __edata
+ 0002:0000       DEVHELP_VIRTTOPHYS
+ 0002:002C       DEVHELP_LOCK
+ 0002:0059       DEVHELP_UNLOCK
+ 0002:007C       DEVHELP_VERIFYACCESS
+ 0002:00A4       DEVHELP_ATTACHDD
+ 0002:00C4       DevHelp_DynamicAPI
+ 0002:00F0       DEVHELP_PROCBLOCK
+ 0002:011B       DEVHELP_PROCRUN
+ 0002:0144       DHRET_0
+ 0002:014E       DHRET_2
+ 0002:015C       DHRET_4
+ 0002:016A       DHRET_6
+ 0002:0178       DHRET_8
+ 0002:0186       DHRET_10
+ 0002:0194       DHRET_12
+ 0002:01A2       DHRET_14
+ 0002:01B0       DHRET_16
+ 0002:01BE       DHRET_18
+ 0002:01CC       DHRET_20
+ 0002:01DA       DHRET_22
+ 0002:01E8       DHRET_24
+ 0002:0204       _SendChar
+ 0002:0220       _PutMessage
+ 0002:0252       _HexString
+ 0002:0282       _DebugASPI
+ 0002:03A8       _DebugResult
+ 0002:040A       _PhysicalPointer
+ 0002:04BE       _ASPI_Post
+ 0002:04DC       _DriverEntry
+ 0002:08A0       _Legal
+ 0002:0934       _Init
+ 0002:0A18       _Encode
+ 0002:0A41       _docode
+ 0002:0A6A       _makepw
+ 0002:0A9C       __aNFaulshr
+ 0002:0ABA       __aNulshr
+ 0002:0AC8       __etext

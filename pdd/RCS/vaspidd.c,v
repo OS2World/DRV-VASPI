@@ -1,0 +1,1368 @@
+head	1.17;
+access;
+symbols
+	release3:1.11
+	release2:1.7
+	release1:1.5;
+locks; strict;
+comment	@ * @;
+
+
+1.17
+date	94.09.23.19.51.24;	author rommel;	state Exp;
+branches;
+next	1.16;
+
+1.16
+date	94.09.14.12.13.36;	author rommel;	state Exp;
+branches;
+next	1.15;
+
+1.15
+date	94.08.09.15.32.03;	author rommel;	state Exp;
+branches;
+next	1.14;
+
+1.14
+date	94.08.09.13.58.14;	author rommel;	state Exp;
+branches;
+next	1.13;
+
+1.13
+date	94.05.26.12.47.56;	author rommel;	state Exp;
+branches;
+next	1.12;
+
+1.12
+date	94.04.20.11.52.19;	author rommel;	state Exp;
+branches;
+next	1.11;
+
+1.11
+date	94.03.29.15.59.25;	author rommel;	state Exp;
+branches;
+next	1.10;
+
+1.10
+date	94.03.09.16.56.26;	author rommel;	state Exp;
+branches;
+next	1.9;
+
+1.9
+date	94.03.09.16.53.39;	author rommel;	state Exp;
+branches;
+next	1.8;
+
+1.8
+date	94.03.04.14.41.22;	author rommel;	state Exp;
+branches;
+next	1.7;
+
+1.7
+date	94.03.01.15.27.39;	author rommel;	state Exp;
+branches;
+next	1.6;
+
+1.6
+date	94.03.01.09.09.20;	author rommel;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	94.02.07.19.28.47;	author rommel;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	94.02.06.21.55.15;	author rommel;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	94.02.02.13.20.27;	author rommel;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	94.01.27.13.00.49;	author rommel;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	94.01.09.20.24.50;	author rommel;	state Exp;
+branches;
+next	;
+
+
+desc
+@Physical device driver for VASPI.
+@
+
+
+1.17
+log
+@seventh release
+@
+text
+@/* vaspidd.c
+ *
+ * virtual ASPI driver for OS/2 2.x
+ * (C) 1993 ARS Computer und Consulting GmbH
+ *
+ * Author:  Kai Uwe Rommel <rommel@@jonas>
+ * Created: Wed Dec 22 1993
+ */
+
+#define VERSION "1.6"
+
+/* developed from sample code from Adaptec */
+ 
+static char *rcsid =
+"$Id: vaspidd.c,v 1.16 1994/09/14 12:13:36 rommel Exp rommel $";
+static char *rcsrev = "$Revision: 1.16 $";
+
+/* 
+ * $Log: vaspidd.c,v $
+ * Revision 1.16  1994/09/14 12:13:36  rommel
+ * sixt release
+ *
+ * Revision 1.15  1994/08/09 15:32:03  rommel
+ * corrected EES license
+ *
+ * Revision 1.14  1994/08/09 13:58:14  rommel
+ * added "EDV + Elektronic Systeme" licensing
+ *
+ * Revision 1.13  1994/05/26 12:47:56  rommel
+ * fifth release
+ *
+ * Revision 1.12  1994/04/20 11:52:19  rommel
+ * fourth release
+ *
+ * Revision 1.11  1994/03/29 15:59:25  rommel
+ * third release
+ *
+ * Revision 1.10  1994/03/09 16:56:26  rommel
+ * removed breakpoint
+ *
+ * Revision 1.9  1994/03/09 16:53:39  rommel
+ * added debug on/off IOCTL
+ *
+ * Revision 1.8  1994/03/04 14:41:22  rommel
+ * driver is now reentrant
+ *
+ * Revision 1.7  1994/03/01 15:27:39  rommel
+ * second release
+ *
+ * Revision 1.6  1994/03/01 09:09:20  rommel
+ * bug fixes for second release
+ *
+ * Revision 1.5  1994/02/07 19:28:47  rommel
+ * bug fix in debugging code
+ *
+ * Revision 1.4  1994/02/06 21:55:15  rommel
+ * first release
+ *
+ * Revision 1.3  1994/02/02 13:20:27  rommel
+ * beta release
+ *
+ * Revision 1.2  1994/01/27 13:00:49  rommel
+ * first test release
+ *
+ * Revision 1.1  1994/01/09 20:24:50  rommel
+ * Initial revision
+ */
+
+#define INCL_NOPMAPI
+#include <os2.h>
+
+#include <devcmd.h>
+#include <devclass.h>
+
+#include <strat2.h>
+#include <reqpkt.h>
+
+#include <iorb.h>
+#include <addcalls.h>
+#include <scsi.h>
+#include <dhcalls.h>
+
+#include "../sdk/os2/aspi.h"
+#include "vaspidd.h"
+
+#define BREAKPOINT       _asm int 3
+
+PFN Device_Help = 0;		/* Pointer to Dev_Help */
+ATTACHAREA OS2ASPI;		/* OS2ASPI entry information */
+BOOL bDemoVersion;
+
+char *CommandName[] =
+{
+  "ADAPTER_INQUIRY",
+  "GET_DEVICE_TYPE",
+  "EXECUTE_IO",
+  "ABORT_IO",
+  "RESET_DEVICE",
+  "SET_ADAPTER_PARMS"
+};
+
+#define MAX_CMD (sizeof(CommandName) / sizeof(char *))
+
+int DebugPort = 0;
+
+void SendChar(char chr)
+{
+  _asm
+  {
+    mov dx,DebugPort
+    add dx,5
+  again:
+    in al,dx
+    and al,0x60
+    cmp al,0x60
+    jne again
+
+    mov al,chr
+    mov dx,DebugPort
+    out dx,al
+  }
+}
+
+void PutMessage(char _far *msg)
+{
+  while (*msg)
+    SendChar(*msg++);
+}
+
+void HexString(ULONG val, char *buf, int digits)
+{
+  static char hex[] = "0123456789ABCDEF";
+
+  for (buf += digits; digits; digits--)
+  {
+    *--buf = hex[val & 0x0F];
+    val >>= 4;
+  }
+}
+
+void DebugASPI(PRP_GENIOCTL ptr)
+{
+  int cmd = ptr -> Function;
+  PASPI_SRB_EXECUTE_IO pSRB;
+  ULONG addr;
+
+  PutMessage("VASPIDD: ");
+
+  if (cmd < MAX_CMD)
+  {
+    PutMessage(CommandName[cmd]);
+
+    if (cmd == ASPI_CMD_GET_DEVICE_TYPE ||
+	cmd == ASPI_CMD_EXECUTE_IO ||
+	cmd == ASPI_CMD_RESET_DEVICE )
+    {
+      char *msg = ": 0 0 0";
+
+      pSRB = (PASPI_SRB_EXECUTE_IO) (ptr -> ParmPacket);
+
+      msg[2] = (char) ('0' + pSRB -> SRBHdr.AdapterIndex);
+      msg[4] = (char) ('0' + pSRB -> DeviceTargetID);
+      msg[6] = (char) ('0' + pSRB -> DeviceTargetLUN);
+
+      PutMessage(msg);
+
+      if (cmd == ASPI_CMD_EXECUTE_IO)
+      {
+	msg = " : 00 00000000 0000";
+	HexString(pSRB -> SCSICDBStart[0], msg + 3, 2);
+	addr = 0;
+	if (ptr -> DataPacket)
+	  DevHelp_VirtToPhys(ptr -> DataPacket, &addr);
+	HexString(addr, msg + 6, 8);
+	HexString(pSRB -> DataXferLen, msg + 15, 4);
+	PutMessage(msg);
+
+	if (pSRB -> SRBHdr.ASPIReqFlags & ASPI_REQFLAG_POST_ENABLE)
+	  PutMessage(" (post)");
+      }
+
+      if (cmd == ASPI_CMD_GET_DEVICE_TYPE)
+	PutMessage("\r\n");
+    }
+    else
+      PutMessage("\r\n");
+  }
+  else
+    PutMessage("ERROR: unknown function\r\n");
+}
+
+void DebugResult(PRP_GENIOCTL ptr)
+{
+  PASPI_SRB_EXECUTE_IO pSRB = (PASPI_SRB_EXECUTE_IO) (ptr -> ParmPacket);
+  char *msg = " -> 00 00 00\r\n";
+
+  HexString(pSRB -> SRBHdr.ASPIStatus, msg + 4, 2);
+  HexString(pSRB -> HostStatus, msg + 7, 2);
+  HexString(pSRB -> TargetStatus, msg + 10, 2);
+  PutMessage(msg);
+}
+
+#define DEBUG_MSG(msg)   if (DebugPort) PutMessage(msg)
+#define DEBUG_ASPI(ptr)  if (DebugPort) DebugASPI(ptr)
+#define DEBUG_RES(ptr)   if (DebugPort) DebugResult(ptr)
+
+BOOL PhysicalPointer(PASPI_SRB_EXECUTE_IO pSRB, PUCHAR dataBufferPtr, 
+		     BOOL bVDDCall, PULONG pDataHandle)
+{
+  /* If the command does not transfer data, no pointer is required */
+  if (pSRB -> DataXferLen == 0)
+  {
+    pSRB -> ppDataBuffer = 0;
+    return TRUE;
+  }
+
+  if (DevHelp_Lock(SELECTOROF(dataBufferPtr),
+		   1,	/* long term lock */
+		   0,	/* block until available */
+		   pDataHandle))
+  {
+    DEBUG_MSG("VASPIDD: data lock failed\r\n");
+    *pDataHandle = -1;
+    if (!bVDDCall)
+      return FALSE;
+  }
+
+  if (!bVDDCall &&
+      DevHelp_VerifyAccess(SELECTOROF(dataBufferPtr), OFFSETOF(dataBufferPtr),
+			   (USHORT) pSRB -> DataXferLen, VERIFY_READWRITE))
+  {
+    DevHelp_UnLock(*pDataHandle);
+    return FALSE;
+  }
+
+  return (DevHelp_VirtToPhys(dataBufferPtr, &(pSRB -> ppDataBuffer)) == 0);
+}
+
+void _far _loadds ASPI_Post(USHORT DataSeg, PASPI_SRB_HEADER pSRBH)
+{
+  USHORT awakeCount;
+
+  /* DEBUG_MSG("VASPIDD: post\r\n"); */
+
+  /* Wake up the thread which made the request. */
+  DevHelp_ProcRun((ULONG) pSRBH, &awakeCount);
+
+  /* Return control to OS2ASPI.DMD */
+}
+
+int DriverEntry(PRPH rp)
+{
+  ULONG dataHandle;		/* Handle for locked data buffer */
+  ULONG parameterHandle;	/* Handle for locked memory */
+  ULONG parameterPtr;		/* Temporary variable for physical ptr */
+  PRP_GENIOCTL rpIOCTL;
+  PASPI_SRB_EXECUTE_IO pSRB_IO;
+  PASPI_SRB_RESET_DEVICE pSRB_RD;
+  USHORT result = STDON;
+  int Init(PRPINITIN pRPI);
+  BOOL bVDDCall = FALSE;
+  BOOL bPost = FALSE;
+
+  switch (rp -> Cmd)
+  {
+
+  case RPINIT:
+    return Init((PRPINITIN) rp);
+
+  case RPOPEN:
+    return STDON;
+
+  case RPCLOSE:
+    return STDON;
+
+  case RPIOCTL:
+
+    rpIOCTL = (PRP_GENIOCTL) rp;
+
+    /* BREAKPOINT; */
+
+    if (rpIOCTL -> Category == ASPI_DEBUG)
+    {
+      switch (rpIOCTL -> Function)
+      {
+      case 0:
+	DebugPort = 0;
+	break;
+      case 1:
+	DebugPort = 0x03F8;
+	break;
+      case 2:
+	DebugPort = 0x02F8;
+	break;
+      }
+      return STDON;
+    }
+
+    if (rpIOCTL -> Category == ASPI_DEMO)
+      return STDON | (bDemoVersion ? 0 : STERR);
+
+    if (rpIOCTL -> Category == ASPI_VDDREQ)
+      bVDDCall = TRUE;
+    else
+      if (rpIOCTL -> Category != ASPI_REQ)
+	return (STDON | STERR | ERROR_BAD_COMMAND);
+
+    if (DevHelp_Lock(SELECTOROF(rpIOCTL -> ParmPacket),
+		     1,		/* long term lock */
+		     0,		/* block until available */
+		     (PULONG) &parameterHandle))
+    {
+      DEBUG_MSG("VASPIDD: parameter lock failed\r\n");
+      return STDON | STERR | ERROR_GEN_FAILURE;
+    }
+
+    switch (rpIOCTL -> Function)
+    {
+
+    case ASPI_CMD_ADAPTER_INQUIRY:
+    case ASPI_CMD_GET_DEVICE_TYPE:
+
+      DEBUG_ASPI(rpIOCTL);
+
+      if (!bVDDCall && 
+	  DevHelp_VerifyAccess(SELECTOROF(rpIOCTL -> ParmPacket),
+			       OFFSETOF(rpIOCTL -> ParmPacket),
+			       sizeof(ASPI_SRB_HEADER), VERIFY_READWRITE))
+      {
+	result = STDON | STERR | ERROR_GEN_FAILURE;
+	break;
+      }
+
+      (*OS2ASPI.pEntryPoint)(OS2ASPI.pDS,
+			     (PASPI_SRB_HEADER) rpIOCTL -> ParmPacket);
+
+      break;
+
+    case ASPI_CMD_EXECUTE_IO:
+
+      DEBUG_ASPI(rpIOCTL);
+
+      if (!bVDDCall &&
+	  DevHelp_VerifyAccess(SELECTOROF(rpIOCTL -> ParmPacket),
+			       OFFSETOF(rpIOCTL -> ParmPacket),
+			       sizeof(ASPI_SRB_EXECUTE_IO), VERIFY_READWRITE))
+      {
+	result = STDON | STERR | ERROR_GEN_FAILURE;
+	break;
+      }
+
+      if (DevHelp_VirtToPhys(rpIOCTL -> ParmPacket, &parameterPtr))
+      {
+	result = STDON | STERR | ERROR_GEN_FAILURE;
+	break;
+      }
+
+      pSRB_IO = (PASPI_SRB_EXECUTE_IO) (rpIOCTL -> ParmPacket);
+
+      /* Copy the physical SRB pointer into the SRB */
+      pSRB_IO -> ppSRB = parameterPtr;
+      /* Copy the post routine address into the SRB */
+      pSRB_IO -> PM_PostAddress = ASPI_Post;
+      /* Copy the post routine data selector to the SRB */
+      pSRB_IO -> PM_DataSeg = OS2ASPI.pDS;
+
+      /* always use post mode, even if not requested */
+      bPost = (pSRB_IO -> SRBHdr.ASPIReqFlags & ASPI_REQFLAG_POST_ENABLE) != 0;
+      pSRB_IO -> SRBHdr.ASPIReqFlags |= ASPI_REQFLAG_POST_ENABLE;
+
+      /* Create a physical pointer to the data buffer */
+      if (!PhysicalPointer(pSRB_IO, rpIOCTL -> DataPacket, 
+			   bVDDCall, &dataHandle))
+      {
+	result = STDON | STERR | ERROR_GEN_FAILURE;
+	break;
+      }
+
+      /* Send the ASPI request to OS2ASPI.DMD */
+      (*OS2ASPI.pEntryPoint)(OS2ASPI.pDS,
+			     (PASPI_SRB_HEADER) rpIOCTL -> ParmPacket);
+
+      DISABLE;
+
+      /* Make sure the command has completed */
+      while (pSRB_IO -> SRBHdr.ASPIStatus == ASPI_STATUS_IN_PROGRESS)
+      {
+	DevHelp_ProcBlock(parameterPtr, (ULONG) -1, WAIT_IS_INTERRUPTABLE);
+	DISABLE;
+      }
+
+      ENABLE;
+
+      /* undo undercover posting */
+      if (!bPost)
+	pSRB_IO -> SRBHdr.ASPIReqFlags &= ~ASPI_REQFLAG_POST_ENABLE;
+
+      /* Unlock the data buffer */
+      if (pSRB_IO -> DataXferLen && dataHandle != -1)
+	DevHelp_UnLock(dataHandle);
+
+      DEBUG_RES(rpIOCTL);
+
+      break;
+
+    case ASPI_CMD_ABORT_IO:
+
+      DEBUG_ASPI(rpIOCTL);
+
+      if (!bVDDCall && 
+	  DevHelp_VerifyAccess(SELECTOROF(rpIOCTL -> ParmPacket),
+			       OFFSETOF(rpIOCTL -> ParmPacket),
+			       sizeof(ASPI_SRB_ABORT_IO), VERIFY_READWRITE))
+      {
+	result = STDON | STERR | ERROR_GEN_FAILURE;
+	break;
+      }
+
+      /* Create a physical pointer to the SRB */
+      if (DevHelp_VirtToPhys(rpIOCTL -> ParmPacket, &parameterPtr))
+      {
+	result = STDON | STERR | ERROR_GEN_FAILURE;
+	break;
+      }
+
+      /* Copy the physical SRB pointer into the SRB */
+      ((PASPI_SRB_ABORT_IO) (rpIOCTL -> ParmPacket)) -> ppSRB = parameterPtr;
+
+      /* Send the ASPI request to OS2ASPI.DMD */
+      (*OS2ASPI.pEntryPoint)(OS2ASPI.pDS,
+			     (PASPI_SRB_HEADER) rpIOCTL -> ParmPacket);
+
+      break;
+
+    case ASPI_CMD_RESET_DEVICE:
+
+      DEBUG_ASPI(rpIOCTL);
+
+      if (!bVDDCall &&
+	  DevHelp_VerifyAccess(SELECTOROF(rpIOCTL -> ParmPacket),
+			       OFFSETOF(rpIOCTL -> ParmPacket),
+			       sizeof(ASPI_SRB_RESET_DEVICE), VERIFY_READWRITE))
+      {
+	result = STDON | STERR | ERROR_GEN_FAILURE;
+	break;
+      }
+
+      pSRB_RD = (PASPI_SRB_RESET_DEVICE) (rpIOCTL -> ParmPacket);
+
+      /* Copy the post routine address into the SRB */
+      pSRB_RD -> PM_PostAddress = ASPI_Post;
+      /* Copy the post routine data selector to the SRB */
+      pSRB_RD -> PM_DataSeg = OS2ASPI.pDS;
+
+      /* Send the ASPI request to OS2ASPI.DMD */
+      (*OS2ASPI.pEntryPoint)(OS2ASPI.pDS,
+			     (PASPI_SRB_HEADER) rpIOCTL -> ParmPacket);
+
+      DISABLE;
+
+      /* Make sure the command has completed */
+      if (pSRB_RD -> SRBHdr.ASPIReqFlags & ASPI_REQFLAG_POST_ENABLE)
+	while (pSRB_RD -> SRBHdr.ASPIStatus == ASPI_STATUS_IN_PROGRESS)
+	{
+	  DevHelp_ProcBlock(parameterPtr, (ULONG) -1, WAIT_IS_INTERRUPTABLE);
+	  DISABLE;
+	}
+
+      ENABLE;
+
+      DEBUG_RES(rpIOCTL);
+
+      break;
+
+    default:
+      DEBUG_ASPI(rpIOCTL);
+      result = STDON | STERR | ERROR_BAD_COMMAND;
+      break;
+    }
+
+    /* Unlock the parameter packet.  */
+    DevHelp_UnLock(parameterHandle);
+
+    if (result != STDON)
+    {
+      DEBUG_MSG("VASPIDD: call failed\r\n");
+      ((PASPI_SRB_HEADER) (rpIOCTL -> ParmPacket)) -> ASPIStatus = 
+	ASPI_STATUS_ABORTED;
+    }
+
+    return result;
+
+  default:
+    return STDON | STERR | ERROR_BAD_COMMAND;
+  }
+}
+
+/* initialization time only code */
+
+extern APIRET APIENTRY DosPutMessage(USHORT hf, USHORT cbMsg, PCHAR pchMsg);
+
+char DevName[]   = "\r\nVirtual ASPI Device Driver, Version " VERSION;
+
+#ifdef EES
+char Copyright[] = "\r\nEDV + Elektronic Systeme\r\n";
+char Copyleft[]  = 
+#else
+char Copyright[] = 
+#endif
+                   "\r\n(C) 1994 ARS Computer und Consulting GmbH\r\n";
+
+char Fail[]      = "This device driver cannot be loaded.\r\n";
+char NoASPI[]    = "No ASPI manager (OS2ASPI.DMD) found.\r\n";
+char CrLf[]      = "\r\n";
+
+char DemoVer[]   = ", Evaluation Version";
+char SerialNum[] = ", SN 00000000";
+
+struct 
+{ 
+  LONG Num; 
+  LONG Key; 
+} 
+Serial = {0xC6AB6894, 0xAAB149AA};
+
+BOOL Legal(void)
+{
+  extern Encode(void *buffer, int bytes, char *password);
+
+  /* BREAKPOINT; */
+
+  Encode(&Serial, sizeof(Serial), "VASPI");
+
+  if (Serial.Num + Serial.Key != 0)
+  {
+    DosPutMessage(1, sizeof(Fail) - 1, Fail);
+    return FALSE;
+  }
+
+  bDemoVersion = (Serial.Num == 0);
+
+  HexString(Serial.Num, SerialNum + 5, 8);
+
+  DosPutMessage(1, sizeof(DevName) - 1, DevName);
+
+  if (bDemoVersion)
+    DosPutMessage(1, sizeof(DemoVer) - 1, DemoVer);
+  else
+    DosPutMessage(1, sizeof(SerialNum) - 1, SerialNum);
+
+  DosPutMessage(1, sizeof(Copyright) - 1, Copyright);
+
+  return TRUE;
+}
+
+int Init(PRPINITIN pRPI)
+{
+  PRPINITOUT pRPO = (PRPINITOUT) pRPI;
+  PSZ pStr;
+  extern int _edata, _etext;
+
+  /* Initialize DevHelp entry point */
+  Device_Help = pRPI -> DevHlpEP;
+
+  /* Write copyright message etc. */
+  if (!Legal())
+    return RPDONE | RPERR | ERROR_BAD_COMMAND;
+
+  /* check if debugging is required */
+  for (pStr = pRPI -> InitArgs; *pStr != 0 && *pStr != ' '; pStr++);
+  if (*pStr)
+  {
+    while (*pStr == ' ')
+      pStr++;
+
+    if (pStr[0] == '/' && (pStr[1] == 'c' || pStr[1] == 'C'))
+      switch(pStr[2])
+      {
+      case '1':
+	DebugPort = 0x03F8;
+	break;
+      case '2':
+	DebugPort = 0x02F8;
+	break;
+      default:
+	DebugPort = 0;
+	break;
+      }
+  }
+  
+  /* Attach to OS2ASPI.DMD */
+  if (DevHelp_AttachDD("SCSIMGR$", (NPBYTE) &OS2ASPI))
+  {
+    DosPutMessage(1, sizeof(NoASPI) - 1, NoASPI);
+    /* The driver failed to install */
+    pRPO -> CodeEnd = 0;
+    pRPO -> DataEnd = 0;
+    return RPDONE | RPERR | ERROR_BAD_COMMAND;
+  }
+  else
+  {
+    DosPutMessage(1, sizeof(CrLf) - 1, CrLf);
+    /* The driver was succesfully installed */
+    pRPO -> CodeEnd = (USHORT) &_etext;
+    pRPO -> DataEnd = (USHORT) &_edata;
+    return RPDONE;
+  }
+}
+@
+
+
+1.16
+log
+@sixt release
+@
+text
+@d10 1
+a10 1
+#define VERSION "1.5"
+d15 2
+a16 2
+"$Id: vaspidd.c,v 1.15 1994/08/09 15:32:03 rommel Exp rommel $";
+static char *rcsrev = "$Revision: 1.15 $";
+d20 3
+@
+
+
+1.15
+log
+@corrected EES license
+@
+text
+@d10 1
+a10 1
+#define VERSION "1.4"
+d15 2
+a16 2
+"$Id: vaspidd.c,v 1.14 1994/08/09 13:58:14 rommel Exp rommel $";
+static char *rcsrev = "$Revision: 1.14 $";
+d20 3
+@
+
+
+1.14
+log
+@added "EDV + Elektronic Systeme" licensing
+@
+text
+@d15 2
+a16 2
+"$Id: vaspidd.c,v 1.13 1994/05/26 12:47:56 rommel Exp $";
+static char *rcsrev = "$Revision: 1.13 $";
+d20 3
+d499 1
+a499 1
+char Copyright[] = "\r\n(C) 1994 EDV + Elektronic Systeme\r\n";
+@
+
+
+1.13
+log
+@fifth release
+@
+text
+@d15 2
+a16 2
+"$Id: vaspidd.c,v 1.12 1994/04/20 11:52:19 rommel Exp rommel $";
+static char *rcsrev = "$Revision: 1.12 $";
+d20 3
+d494 8
+a501 1
+char Copyright[] = "\r\n(C) 1994 ARS Computer und Consulting GmbH\r\n";
+@
+
+
+1.12
+log
+@fourth release
+@
+text
+@d10 1
+a10 1
+#define VERSION "1.3"
+d15 2
+a16 2
+"$Id: vaspidd.c,v 1.11 1994/03/29 15:59:25 rommel Exp rommel $";
+static char *rcsrev = "$Revision: 1.11 $";
+d18 11
+a28 7
+/* $Log: vaspidd.c,v $
+/* Revision 1.11  1994/03/29 15:59:25  rommel
+/* third release
+/*
+/* Revision 1.10  1994/03/09 16:56:26  rommel
+/* removed breakpoint
+/*
+d55 1
+a55 1
+ * */
+@
+
+
+1.11
+log
+@third release
+@
+text
+@d10 1
+a10 1
+#define VERSION "1.2"
+d15 2
+a16 2
+"$Id: vaspidd.c,v 1.10 1994/03/09 16:56:26 rommel Exp rommel $";
+static char *rcsrev = "$Revision: 1.10 $";
+d19 3
+d74 1
+d283 4
+a286 1
+    if (rpIOCTL -> Category == ASPI_REQ + 1)
+d493 1
+d517 2
+d522 6
+a527 1
+  DosPutMessage(1, sizeof(SerialNum) - 1, SerialNum);
+@
+
+
+1.10
+log
+@removed breakpoint
+@
+text
+@d10 1
+a10 1
+#define VERSION "1.1"
+d15 2
+a16 2
+"$Id: vaspidd.c,v 1.9 1994/03/09 16:53:39 rommel Exp rommel $";
+static char *rcsrev = "$Revision: 1.9 $";
+d19 3
+@
+
+
+1.9
+log
+@added debug on/off IOCTL
+@
+text
+@d15 2
+a16 2
+"$Id: vaspidd.c,v 1.8 1994/03/04 14:41:22 rommel Exp rommel $";
+static char *rcsrev = "$Revision: 1.8 $";
+d19 3
+d220 1
+a220 1
+  // DEBUG_MSG("VASPIDD: post\r\n");
+d257 1
+a257 1
+    BREAKPOINT;
+@
+
+
+1.8
+log
+@driver is now reentrant
+@
+text
+@d15 2
+a16 2
+"$Id: vaspidd.c,v 1.7 1994/03/01 15:27:39 rommel Exp rommel $";
+static char *rcsrev = "$Revision: 1.7 $";
+d19 3
+d254 19
+a277 2
+
+    /* BREAKPOINT; */
+@
+
+
+1.7
+log
+@second release
+@
+text
+@d15 2
+a16 2
+"$Id: vaspidd.c,v 1.6 1994/03/01 09:09:20 rommel Exp rommel $";
+static char *rcsrev = "$Revision: 1.6 $";
+d19 3
+a61 2
+ULONG dataHandle;		/* Handle for locked data buffer */
+ULONG parameterHandle;		/* Handle for locked memory */
+d179 1
+a179 1
+		     BOOL bVDDCall)
+d191 1
+a191 1
+		   (PULONG) &dataHandle))
+d194 1
+a194 1
+    dataHandle = -1;
+d203 1
+a203 1
+    DevHelp_UnLock(dataHandle);
+a213 5
+  /* The following code assumes that requests are single threaded.  */
+  /* If you are going to allow multiple requests to be active */
+  /* simultaneously then you need to create data structures that will */
+  /* record the handle and virtual data pointer for each request.  */
+
+d224 2
+d323 2
+a324 1
+      if (!PhysicalPointer(pSRB_IO, rpIOCTL -> DataPacket, bVDDCall))
+@
+
+
+1.6
+log
+@bug fixes for second release
+@
+text
+@d10 1
+a10 1
+#define VERSION "1.0"
+d15 2
+a16 2
+"$Id: vaspidd.c,v 1.5 1994/02/07 19:28:47 rommel Exp rommel $";
+static char *rcsrev = "$Revision: 1.5 $";
+d19 3
+@
+
+
+1.5
+log
+@bug fix in debugging code
+@
+text
+@d15 2
+a16 2
+"$Id: vaspidd.c,v 1.4 1994/02/06 21:55:15 rommel Exp rommel $";
+static char *rcsrev = "$Revision: 1.4 $";
+d19 3
+d449 41
+a493 1
+  BOOL Legal(void);
+d528 1
+d536 1
+a541 31
+}
+
+char DevName[]   = "\r\nVirtual ASPI Device Driver, Version " VERSION;
+char Copyright[] = "\r\n(C) 1994 ARS Computer und Consulting GmbH\r\n\n";
+char SerialNum[] = ", SN 00000000";
+
+struct 
+{ 
+  LONG Num; 
+  LONG Key; 
+} 
+Serial = {0xC6AB6894, 0xAAB149AA};
+
+BOOL Legal(void)
+{
+  extern APIRET APIENTRY DosPutMessage(USHORT hf, USHORT cbMsg, PCHAR pchMsg);
+  extern Encode(void *buffer, int bytes, char *password);
+
+  /* BREAKPOINT; */
+  Encode(&Serial, sizeof(Serial), "VASPI");
+
+  if (Serial.Num + Serial.Key != 0)
+    return FALSE;
+
+  HexString(Serial.Num, SerialNum + 5, 8);
+
+  DosPutMessage(1, sizeof(DevName) - 1, DevName);
+  DosPutMessage(1, sizeof(SerialNum) - 1, SerialNum);
+  DosPutMessage(1, sizeof(Copyright) - 1, Copyright);
+
+  return TRUE;
+@
+
+
+1.4
+log
+@first release
+@
+text
+@d15 2
+a16 2
+"$Id: vaspidd.c,v 1.3 1994/02/02 13:20:27 rommel Exp rommel $";
+static char *rcsrev = "$Revision: 1.3 $";
+d19 3
+d451 1
+a451 1
+  extern int _edata;
+d493 1
+a493 1
+    pRPO -> CodeEnd = (USHORT) &Init;
+@
+
+
+1.3
+log
+@beta release
+@
+text
+@d10 2
+d15 2
+a16 2
+"$Id: vaspidd.c,v 1.2 1994/01/27 13:00:49 rommel Exp rommel $";
+static char *rcsrev = "$Revision: 1.2 $";
+d19 3
+a47 9
+extern void STRATEGY();
+extern APIRET APIENTRY DosPutMessage(USHORT hf, USHORT cbMsg, PCHAR pchMsg);
+extern int _edata;
+
+char DriverMessage[]   = "\r\nVirtual ASPI Device Driver, ";
+char DriverCopyright[] = "\r\n(C) 1994 ARS Computer und Consulting GmbH\r\n";
+char DriverInstalled[] = "VASPIDD successfully installed\r\n";
+char DriverAborted[]   = "VASPIDD could not be installed\r\n";
+
+a52 1
+
+d98 1
+a98 14
+    
+    _asm /* val >>= 4 */
+    {
+      mov ax,word ptr val
+      mov dx,word ptr val+2
+      shr ax,4
+      push dx
+      shl dl,4
+      or ah,dl
+      pop dx
+      shr dx,4
+      mov word ptr val,ax
+      mov word ptr val+2,dx
+    }
+d441 2
+d447 2
+d453 3
+a455 5
+  /* Write copyright message */
+  DosPutMessage(1, sizeof(DriverMessage) - 1, DriverMessage);
+  for (pStr = rcsrev + 1; *pStr != '$'; pStr++)
+    DosPutMessage(1, 1, pStr);
+  DosPutMessage(1, sizeof(DriverCopyright) - 1, DriverCopyright);
+a482 1
+    DosPutMessage(1, sizeof(DriverAborted) - 1, DriverAborted);
+a489 1
+    DosPutMessage(1, sizeof(DriverInstalled) - 1, DriverInstalled);
+d494 31
+@
+
+
+1.2
+log
+@first test release
+@
+text
+@d13 2
+a14 5
+"$Id$";
+static char *rcsrev = "$Revision$";
+
+/* $Id: vaspidd.c,v 1.1 1994/01/09 20:24:50 rommel Exp rommel $ */
+/* $Revision: 1.1 $ */
+d17 3
+a23 2
+#define DEBUG_OUTPUT
+
+d41 2
+d47 4
+a50 6
+char DriverMessage[] = 
+"\r\nVirtual ASPI Device Driver, (C) 1994 ARS Computer und Consulting GmbH\r\n";
+char DriverInstalled[] = 
+"VASPIDD successfully installed\r\n";
+char DriverAborted[] = 
+"VASPIDD could not be installed\r\n";
+a57 2
+#ifdef DEBUG_OUTPUT
+
+d70 2
+a73 2
+  int port = 0x02F8;
+
+d76 1
+a76 1
+    mov dx,port
+d85 1
+a85 1
+    mov dx,port
+d90 1
+a90 1
+void PutMessage(char *msg)
+d96 24
+d124 1
+a124 1
+  static char hex[] = "0123456789ABCDEF";
+d146 1
+a146 1
+      if (cmd == ASPI_CMD_EXECUTE_IO )
+d148 7
+a154 4
+	cmd = pSRB -> SCSICDBStart[0];
+	msg = " : 00";
+	msg[3] = hex[cmd >> 4];
+	msg[4] = hex[cmd & 0x0F];
+d160 3
+d164 2
+a165 2
+
+    PutMessage("\r\n");
+d171 4
+a174 3
+#define DEBUG_ASPI(ptr)  DebugASPI(ptr)
+#define DEBUG_MSG(msg)   PutMessage(msg)
+#define BREAKPOINT       _asm int 3
+d176 5
+a180 5
+#else
+
+#define DEBUG_ASPI(ptr)
+#define DEBUG_MSG(msg)
+#define BREAKPOINT
+d182 3
+a184 1
+#endif
+d202 1
+a332 2
+      /* BREAKPOINT; */
+
+d360 1
+a360 1
+      if (pSRB_IO -> DataXferLen)
+d363 2
+a415 4
+      /* always use post mode, even if not requested */
+      bPost = (pSRB_RD -> SRBHdr.ASPIReqFlags & ASPI_REQFLAG_POST_ENABLE) != 0;
+      pSRB_RD -> SRBHdr.ASPIReqFlags |= ASPI_REQFLAG_POST_ENABLE;
+
+d423 6
+a428 5
+      while (pSRB_RD -> SRBHdr.ASPIStatus == ASPI_STATUS_IN_PROGRESS)
+      {
+	DevHelp_ProcBlock(parameterPtr, (ULONG) -1, WAIT_IS_INTERRUPTABLE);
+	DISABLE;
+      }
+d432 1
+a432 3
+      /* undo undercover posting */
+      if (!bPost)
+	pSRB_RD -> SRBHdr.ASPIReqFlags &= ~ASPI_REQFLAG_POST_ENABLE;
+a460 1
+  char *SCSIManager = "SCSIMGR$";
+d462 1
+d469 10
+d480 15
+d496 1
+a496 1
+  if (DevHelp_AttachDD (SCSIManager, (NPBYTE) &OS2ASPI))
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d1 22
+a22 12
+/******************************************************************************
+      
+ Copyright 1993 Adaptec, Inc., All Rights Reserved. 
+
+ This software contains the valuable trade secrets of Adaptec. The
+ software is protected under copyright laws as an unpublished work of         
+ Adaptec. Notice is for informational purposes only and does not imply
+ publication. The user of this software may make copies of the software
+ for use with parts manufactured by Adaptec or under license from Adaptec
+ and for no other use.                                                
+      
+*******************************************************************************/
+d24 1
+a24 4
+/* $Id$ */
+/* $Revision$ */
+
+/* $Log$ */
+d45 1
+d59 98
+d167 1
+a167 2
+  if (!bVDDCall &&
+      DevHelp_Lock(SELECTOROF(dataBufferPtr),
+d171 5
+a175 1
+    return FALSE;
+d177 1
+a177 1
+  if (!bVDDCall ||
+d179 2
+a180 5
+			   (USHORT) pSRB -> DataXferLen, VERIFY_READWRITE) == 0)
+    if (DevHelp_VirtToPhys(dataBufferPtr, &(pSRB -> ppDataBuffer)) == 0)
+      return TRUE;
+
+  if (!bVDDCall)
+d182 2
+d185 1
+a185 1
+  return FALSE;
+d197 1
+a197 1
+  _asm int 3;
+d209 2
+d213 2
+a214 1
+  BOOL bVDDCall = TRUE;
+d233 4
+a236 4
+    {
+      rpIOCTL -> Category--;
+      bVDDCall = FALSE;
+    }
+d238 1
+a238 2
+    if (rpIOCTL -> Category != ASPI_REQ)
+      return (STDON | STERR | ERROR_BAD_COMMAND);
+d244 2
+d247 1
+a247 2
+
+    _asm int 3;
+d254 4
+a257 1
+      if (bVDDCall && 
+d261 1
+d263 6
+a268 3
+      else
+	(*OS2ASPI.pEntryPoint)(OS2ASPI.pDS,
+			       (PASPI_SRB_HEADER) rpIOCTL -> ParmPacket);
+d272 4
+a275 1
+      if (bVDDCall &&
+d279 1
+d281 4
+a284 1
+      else
+d286 2
+a287 44
+	if (DevHelp_VirtToPhys(rpIOCTL -> ParmPacket, &parameterPtr))
+	  result = STDON | STERR | ERROR_GEN_FAILURE;
+	else
+	{
+	  /* Copy the physical SRB pointer into the SRB */
+	  ((PASPI_SRB_EXECUTE_IO) (rpIOCTL -> ParmPacket)) 
+	    -> ppSRB = parameterPtr;
+
+	  /* Copy the post routine address into the SRB */
+	  ((PASPI_SRB_EXECUTE_IO) (rpIOCTL -> ParmPacket)) 
+	    -> PM_PostAddress = ASPI_Post;
+
+	  /* Copy the post routine data selector to the SRB */
+	  ((PASPI_SRB_EXECUTE_IO) (rpIOCTL -> ParmPacket)) 
+	    -> PM_DataSeg = OS2ASPI.pDS;
+
+	  /* Create a physical pointer to the data buffer */
+	  if ((PhysicalPointer((PASPI_SRB_EXECUTE_IO) rpIOCTL -> ParmPacket,
+			       rpIOCTL -> DataPacket, bVDDCall)) == FALSE)
+	    result = STDON | STERR | ERROR_GEN_FAILURE;
+	  else
+	  {
+	    /* Send the ASPI request to OS2ASPI.DMD */
+	    (*OS2ASPI.pEntryPoint)(OS2ASPI.pDS,
+				   (PASPI_SRB_HEADER) rpIOCTL -> ParmPacket);
+	    DISABLE;
+	    /* Make sure the command has completed */
+	    if (((PASPI_SRB_EXECUTE_IO) (rpIOCTL -> ParmPacket)) ->
+		SRBHdr.ASPIReqFlags & ASPI_REQFLAG_POST_ENABLE)
+	    {
+	      while (((PASPI_SRB_EXECUTE_IO) (rpIOCTL -> ParmPacket)) 
+		     -> SRBHdr.ASPIStatus == ASPI_STATUS_IN_PROGRESS)
+	      {
+		DevHelp_ProcBlock(parameterPtr, (ULONG) -1,
+				  WAIT_IS_INTERRUPTABLE);
+		DISABLE;
+	      }
+	    }
+	    ENABLE;
+	    /* Unlock the data buffer */
+	    if (!bVDDCall)
+	      DevHelp_UnLock(dataHandle);
+	  }
+	}
+d289 46
+d338 4
+a341 1
+      if (bVDDCall && 
+d345 1
+d347 5
+a351 1
+      else
+d353 2
+a354 12
+	/* Create a physical pointer to the SRB */
+	if (DevHelp_VirtToPhys(rpIOCTL -> ParmPacket, &parameterPtr))
+	  result = STDON | STERR | ERROR_GEN_FAILURE;
+	else
+	{
+	  /* Copy the physical SRB pointer into the SRB */
+	  ((PASPI_SRB_ABORT_IO) (rpIOCTL -> ParmPacket)) 
+	    -> ppSRB = parameterPtr;
+	  /* Send the ASPI request to OS2ASPI.DMD */
+	  (*OS2ASPI.pEntryPoint)(OS2ASPI.pDS,
+				 (PASPI_SRB_HEADER) rpIOCTL -> ParmPacket);
+	}
+d356 8
+d367 4
+a370 1
+      if (bVDDCall &&
+d374 1
+d376 22
+a397 1
+      else
+d399 1
+a399 9
+	/* Copy the post routine address into the SRB */
+	((PASPI_SRB_RESET_DEVICE) (rpIOCTL -> ParmPacket)) 
+	  -> PM_PostAddress = ASPI_Post;
+	/* Copy the post routine data selector to the SRB */
+	((PASPI_SRB_RESET_DEVICE) (rpIOCTL -> ParmPacket)) 
+	  -> PM_DataSeg = OS2ASPI.pDS;
+	/* Send the ASPI request to OS2ASPI.DMD */
+	(*OS2ASPI.pEntryPoint)(OS2ASPI.pDS,
+			       (PASPI_SRB_HEADER) rpIOCTL -> ParmPacket);
+a400 13
+	/* Make sure the command has completed */
+	if (((PASPI_SRB_RESET_DEVICE) (rpIOCTL -> ParmPacket)) 
+	    -> SRBHdr.ASPIReqFlags & ASPI_REQFLAG_POST_ENABLE)
+	{
+	  while (((PASPI_SRB_RESET_DEVICE) (rpIOCTL -> ParmPacket)) 
+		 -> SRBHdr.ASPIStatus == ASPI_STATUS_IN_PROGRESS)
+	  {
+	    DevHelp_ProcBlock(parameterPtr, (ULONG) -1,
+			      WAIT_IS_INTERRUPTABLE);
+	    DISABLE;
+	  }
+	}
+	ENABLE;
+d402 7
+d412 1
+d419 8
+d459 1
+a459 1
+    pRPO -> DataEnd = (USHORT) &parameterHandle + sizeof(parameterHandle);
+@

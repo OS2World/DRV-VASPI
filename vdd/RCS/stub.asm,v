@@ -1,0 +1,723 @@
+head	1.12;
+access;
+symbols
+	release3:1.9
+	release2:1.5
+	release1:1.4;
+locks
+	rommel:1.12; strict;
+comment	@;;; @;
+
+
+1.12
+date	94.09.14.12.15.00;	author rommel;	state Exp;
+branches;
+next	1.11;
+
+1.11
+date	94.05.26.12.48.20;	author rommel;	state Exp;
+branches;
+next	1.10;
+
+1.10
+date	94.04.20.11.54.37;	author rommel;	state Exp;
+branches;
+next	1.9;
+
+1.9
+date	94.03.29.16.09.50;	author rommel;	state Exp;
+branches;
+next	1.8;
+
+1.8
+date	94.03.09.17.29.00;	author rommel;	state Exp;
+branches;
+next	1.7;
+
+1.7
+date	94.03.03.16.52.08;	author rommel;	state Exp;
+branches;
+next	1.6;
+
+1.6
+date	94.03.01.16.18.53;	author rommel;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	94.03.01.15.30.22;	author rommel;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	94.02.04.17.43.43;	author rommel;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	94.02.02.13.22.39;	author rommel;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	94.01.27.13.00.02;	author rommel;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	93.12.22.13.07.23;	author rommel;	state Exp;
+branches;
+next	;
+
+
+desc
+@@
+
+
+1.12
+log
+@new init method, allows real stub for specific DOS sessions
+@
+text
+@;;; stub.asm
+
+;;; virtual ASPI driver for OS/2 2.x
+;;; (C) 1994 ARS Computer und Consulting GmbH
+
+;;; Author:  Kai Uwe Rommel <rommel@@jonas>
+;;; Created: Wed Dec 22 1993
+
+;;; $Id: stub.asm,v 1.11 1994/05/26 12:48:20 rommel Exp rommel $
+;;; $Revision: 1.11 $
+
+;;; $Log: stub.asm,v $
+;;; Revision 1.11  1994/05/26 12:48:20  rommel
+;;; fix for NetWare requester
+;;;
+;;; Revision 1.10  1994/04/20 11:54:37  rommel
+;;; fourth release
+;;;
+;;; Revision 1.9  1994/03/29 16:09:50  rommel
+;;; now using VDHPushInt, simplified
+;;;
+;;; Revision 1.8  1994/03/09 17:29:00  rommel
+;;; new version using VDHPushFarCall
+;;;
+;;; Revision 1.7  1994/03/03 16:52:08  rommel
+;;; changes for WINASPI.DLL
+;;;
+;;; Revision 1.6  1994/03/01 16:18:53  rommel
+;;; second release
+;;;
+;;; Revision 1.5  1994/03/01 15:30:22  rommel
+;;; bug fix for post mode
+;;;
+;;; Revision 1.4  1994/02/04 17:43:43  rommel
+;;; first release
+;;;
+;;; Revision 1.3  1994/02/02 13:22:39  rommel
+;;; beta release
+;;;
+;;; Revision 1.2  1994/01/27 13:00:02  rommel
+;;; first test release
+;;;
+;;; Revision 1.1  1993/12/22 13:07:23  rommel
+;;; Initial revision
+
+	.186
+	PAGE	200,132
+
+REQHDR	STRUC
+	rh_reqlen   	DB      ?
+	rh_unit     	DB      ?
+	rh_command  	DB      ?
+	rh_status   	DW      ?
+	rh_rs2      	DB      8 DUP (?)
+	rh_units    	DB      ?
+	rh_addr     	DD      ?
+	rh_count    	DW      ?
+	rh_rs3      	DW	?
+REQHDR ENDS
+
+tick	EQU	01CH
+int2f	EQU	02FH
+ini_int	EQU	05AH
+
+mp_post	EQU	0C701H
+mp_aspi	EQU	0C702H
+	
+CODE	SEGMENT BYTE PUBLIC 'CODE'
+
+        ASSUME CS:CODE,DS:CODE,ES:CODE
+        ORG 00000H
+
+;;; The next few lines are used by an REXX script
+;;; to convert the listing file into an .ASM file.
+;;;
+;;; #### HEADERFILE=stub.h
+;;; #### ENTRYPOINT=StubStart
+;;; #### LENGTH=StubLength
+;;;
+;;; #### BEGIN EXTRACTION
+
+start:	
+
+header	DD	-1		; link to next driver; -1 = end of list
+attrib	DW  	0C800h		; character, ioctl, ibm, removable
+	DW  	strat
+	DW  	inter
+	DB  	'SCSIMGR$'      ; Device name
+	DW  	0               ; reserved (must be zero)
+	DB  	0               ; drive letter (must be zero)
+	DB  	0               ; number of units supported
+
+reqhdr	DD 	?               ; address of Request Header
+	
+old2f	DD	?		; old multiplex (2F) interrupt vector
+
+vector	DD	?		; address of VASPI hook routine
+avail	DW	0		; is ASPI available to this session?
+
+aspi	PROC FAR
+
+	jmp	SHORT entry
+	nop
+	nop
+	nop
+	
+entry:	push	bp
+	mov	bp,sp
+
+	push	bx
+	push	es
+	
+	mov	bx,[bp+6]
+	mov	es,[bp+8]
+
+	pushf
+	call	cs:vector
+
+	pop	es
+	pop	bx
+		
+	pop	bp
+        ret
+
+aspi	ENDP
+
+mplex	PROC FAR
+
+	cmp	ax,mp_aspi
+	jne	post
+
+	push	es
+	push	bx
+	
+	mov	es,bx
+	mov	bx,0
+	pushf
+	call	cs:vector
+	
+	pop	bx
+	pop	es
+	
+	iret
+
+post:	cmp	ax,mp_post
+	jne	old
+
+	pusha
+	push	ds
+	push	es
+	
+	mov	es,cx
+	push	es
+	push	bx
+	call	DWORD PTR es:[bx+26] 	; post routine offset in SRB
+	add	sp,4
+	
+	pop	es
+	pop	ds
+	popa
+	
+	iret
+	
+old:	jmp	cs:old2f
+
+mplex	ENDP
+
+strat	PROC FAR
+
+        mov	WORD PTR cs:[reqhdr],bx
+        mov	WORD PTR cs:[reqhdr+2],es
+        ret
+
+strat	ENDP
+
+inter	PROC FAR
+
+        push    ax
+        push    bx
+        push    es
+
+        les     bx,cs:[reqhdr]
+        mov     WORD PTR es:[bx.rh_status],00100H	;  OK
+        mov     al,es:[bx.rh_command]
+
+        cmp     al,0
+        jz      init
+	cmp	al,3
+	jz	ioctl
+;	cmp	al,13
+;	jz	open
+
+exit:	pop     es
+        pop     bx
+        pop     ax
+        ret
+
+init:	mov     WORD PTR es:[bx.rh_addr],OFFSET drvend
+        mov     WORD PTR es:[bx.rh_addr+2],cs
+
+	push	es
+	push	bx
+	mov	ax,mp_aspi
+	int	ini_int			; ask VDD for entry point
+	cmp	ax,mp_aspi
+	jz	novdd
+	mov	avail,ax
+	mov	WORD PTR cs:vector,bx
+	mov	WORD PTR cs:vector+2,es
+novdd:	pop	bx
+	pop	es
+
+	cli	
+	push	0
+	pop	es
+	
+        mov     bx,int2f * 4		; set multiplex (2F) interrupt vector
+        push    es:[bx]
+        push    es:[bx+2]
+	pop	WORD PTR cs:old2f+2
+	pop	WORD PTR cs:old2f
+	push	OFFSET mplex
+	push	cs
+	pop     es:[bx+2]
+	pop     es:[bx]
+	
+	sti
+
+        jmp     exit
+
+ioctl:	cmp	avail,1
+	jz	ioctl2
+        mov     WORD PTR es:[bx.rh_status],08102H	;  ERROR
+ioctl2:	les	bx,es:[bx.rh_addr]
+	mov	WORD PTR es:[bx],OFFSET aspi
+	mov	WORD PTR es:[bx+2],cs
+	jmp	exit
+	
+open:	cmp	avail,1
+	jz	open2
+        mov     WORD PTR es:[bx.rh_status],08102H	;  ERROR
+open2:	jmp	exit
+
+inter	ENDP
+
+drvend	LABEL BYTE
+
+;;;
+;;; #### END EXTRACTION
+;;;
+
+CODE    ENDS
+
+        END	start
+
+;;; end of stub.asm
+@
+
+
+1.11
+log
+@fix for NetWare requester
+@
+text
+@d9 2
+a10 2
+;;; $Id: stub.asm,v 1.10 1994/04/20 11:54:37 rommel Exp rommel $
+;;; $Revision: 1.10 $
+d13 3
+d47 1
+a47 1
+	PAGE	255,132
+d63 1
+d82 2
+a87 1
+patch0  LABEL BYTE              ; #### LABEL=DevName
+a96 1
+patch1  LABEL BYTE              ; #### LABEL=Vector
+a97 1
+patch2  LABEL BYTE              ; #### LABEL=Avail
+d201 12
+d254 1
+a254 1
+        END
+@
+
+
+1.10
+log
+@fourth release
+@
+text
+@d9 2
+a10 2
+;;; $Id: stub.asm,v 1.9 1994/03/29 16:09:50 rommel Exp rommel $
+;;; $Revision: 1.9 $
+d13 3
+d61 2
+a62 2
+mpaspi	EQU	0C700H
+mppost	EQU	0C701H
+d126 1
+a126 1
+	cmp	ax,mpaspi
+d142 1
+a142 1
+post:	cmp	ax,mppost
+d162 1
+a162 1
+		
+d209 2
+a210 2
+        pop     es:[bx+2]
+        pop     es:[bx]
+@
+
+
+1.9
+log
+@now using VDHPushInt, simplified
+@
+text
+@d9 2
+a10 2
+;;; $Id: stub.asm,v 1.8 1994/03/09 17:29:00 rommel Exp rommel $
+;;; $Revision: 1.8 $
+d13 3
+d79 1
+a79 1
+patch1  LABEL BYTE              ; #### LABEL=DevName
+d89 1
+a89 1
+patch0  LABEL BYTE              ; #### LABEL=Patch
+d91 2
+d184 2
+d213 4
+a216 1
+ioctl:	les	bx,es:[bx.rh_addr]
+d219 6
+a224 1
+	jmp	exit	
+@
+
+
+1.8
+log
+@new version using VDHPushFarCall
+@
+text
+@d9 2
+a10 2
+;;; $Id: stub.asm,v 1.7 1994/03/03 16:52:08 rommel Exp rommel $
+;;; $Revision: 1.7 $
+d13 3
+d54 3
+a56 1
+mpid	EQU	0C7H
+d86 2
+a87 1
+vector	DD	?		; address of aspi routine
+d106 1
+a106 3
+	DB      09AH 		; far call
+patch0  LABEL BYTE              ; #### LABEL=Patch
+        DD	?		; This number will get patched during install.
+d118 17
+a134 1
+	cmp	ah,mpid
+d137 6
+d144 1
+a144 2
+	push	0
+	call	cs:vector
+d147 6
+a203 3
+	mov	WORD PTR cs:vector,OFFSET aspi
+	mov	WORD PTR cs:vector+2,cs
+	
+@
+
+
+1.7
+log
+@changes for WINASPI.DLL
+@
+text
+@d9 2
+a10 2
+;;; $Id: stub.asm,v 1.6 1994/03/01 16:18:53 rommel Exp rommel $
+;;; $Revision: 1.6 $
+d13 3
+a78 7
+post	DB	?		; is posting required
+postcnt DB	0		; countdown
+postadr	DD	?		; which post routine to call
+srbofs	DW	?		; which SRB is affected
+srbseg	DW	?
+	
+otimer	DD	?		; old timer interrupt vector
+a98 14
+	push	ax
+	mov	cs:post,0
+	mov	al,es:[bx+3]	; ASPIReqFlags
+	and	al,1		; ASPI_REQFLAG_POST_ENABLE
+	jz	nopost
+	mov	cs:post,1
+	mov	cs:srbofs,bx
+	mov	cs:srbseg,es
+	mov	ax,es:[bx+26]	; RM_PostAddress offset
+	mov	WORD PTR cs:[postadr],ax
+	mov	ax,es:[bx+28]	; RM_PostAddress segment
+	mov	WORD PTR cs:[postadr+2],ax
+nopost:	pop	ax
+
+a103 6
+	pushf
+	cmp	cs:post,1		
+	jne	nocall
+	mov	cs:postcnt,2
+nocall:	popf
+	
+a111 18
+timer	PROC FAR
+
+	cmp	cs:postcnt,0
+	jz	ntimer
+	dec	cs:postcnt
+	jnz	ntimer
+
+	pusha
+	push	cs:srbseg
+	push	cs:srbofs
+	call	cs:postadr
+	add	sp,4
+	popa
+	
+ntimer:	jmp	cs:otimer
+		
+timer	ENDP
+
+a160 10
+        mov     bx,tick * 4		; set timer interrupt vector
+        push    es:[bx]
+        push    es:[bx+2]
+	pop	WORD PTR cs:otimer+2
+	pop	WORD PTR cs:otimer
+	push	OFFSET timer
+	push	cs
+        pop     es:[bx+2]
+        pop     es:[bx]
+
+@
+
+
+1.6
+log
+@second release
+@
+text
+@d9 2
+a10 2
+;;; $Id: stub.asm,v 1.5 1994/03/01 15:30:22 rommel Exp rommel $
+;;; $Revision: 1.5 $
+d13 3
+d47 2
+d83 3
+a125 3
+;	pusha
+; 	call	cs:postadr	
+;	popa
+d154 14
+d199 1
+a199 1
+	cli			; set timer interrupt vector
+d202 2
+a203 1
+        mov     bx,tick * 4
+d212 11
+d224 3
+@
+
+
+1.5
+log
+@bug fix for post mode
+@
+text
+@d9 2
+a10 2
+;;; $Id: stub.asm,v 1.4 1994/02/04 17:43:43 rommel Exp rommel $
+;;; $Revision: 1.4 $
+d13 3
+d104 1
+a104 1
+	mov	WORD PTR cs:postadr,ax
+d106 1
+a106 1
+	mov	WORD PTR cs:postadr+2,ax
+d139 1
+a140 1
+	push	cs:srbseg
+d151 2
+a152 2
+        mov	WORD PTR cs:reqhdr,bx
+        mov	WORD PTR cs:reqhdr+2,es
+d163 1
+a163 1
+        les     bx,cs:reqhdr
+@
+
+
+1.4
+log
+@first release
+@
+text
+@d9 2
+a10 2
+;;; $Id: stub.asm,v 1.3 1994/02/02 13:22:39 rommel Exp rommel $
+;;; $Revision: 1.3 $
+d13 3
+d71 3
+a73 1
+
+d93 1
+a93 1
+	mov	cs:[post],0
+d97 3
+a99 1
+	mov	cs:[post],1
+d101 1
+a101 1
+	mov	WORD PTR cs:[postadr],ax
+d103 1
+a103 1
+	mov	WORD PTR cs:[postadr+2],ax
+d134 1
+a134 1
+	
+d136 2
+d139 1
+d148 2
+a149 2
+        mov	WORD PTR cs:[reqhdr],bx
+        mov	WORD PTR cs:[reqhdr+2],es
+d160 1
+a160 1
+        les     bx,cs:[reqhdr]
+@
+
+
+1.3
+log
+@beta release
+@
+text
+@d9 2
+a10 2
+;;; $Id: stub.asm,v 1.2 1994/01/27 13:00:02 rommel Exp rommel $
+;;; $Revision: 1.2 $
+d13 3
+d37 2
+d66 1
+d69 2
+d107 4
+a110 3
+	pusha
+ 	call	cs:postadr
+	popa
+d121 15
+d166 15
+@
+
+
+1.2
+log
+@first test release
+@
+text
+@d2 1
+a2 1
+;;;
+d4 2
+a5 2
+;;; (C) 1993 ARS Computer und Consulting GmbH
+;;;
+d9 2
+a10 2
+;;; $Id: stub.asm,v 1.1 1993/12/22 13:07:23 rommel Exp rommel $
+;;; $Revision: 1.1 $
+d13 3
+a17 2
+;;;
+
+a21 1
+
+a33 1
+
+a38 1
+
+a47 1
+	
+a62 1
+
+a111 1
+
+a119 1
+
+a150 1
+
+a152 1
+
+a156 1
+
+a159 1
+
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d9 2
+a10 2
+;;; $Id$
+;;; $Revision$
+d12 4
+a15 1
+;;; $Log$
+d18 2
+a19 2
+	.8086
+	PAGE	,132
+d62 3
+d79 15
+a93 2
+	mov	bx,WORD PTR [bp+6]
+	mov	es,WORD PTR [bp+8]
+d100 8
+@

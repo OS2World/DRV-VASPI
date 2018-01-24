@@ -1,0 +1,106 @@
+head	1.3;
+access;
+symbols
+	release3:1.3
+	release2:1.3
+	release1:1.3;
+locks; strict;
+comment	@; @;
+
+
+1.3
+date	94.02.02.13.22.39;	author rommel;	state release1;
+branches;
+next	1.2;
+
+1.2
+date	93.12.22.13.07.08;	author rommel;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	93.12.20.17.38.11;	author rommel;	state Exp;
+branches;
+next	;
+
+
+desc
+@virtual ASPI driver for OS/2 2.x
+@
+
+
+1.3
+log
+@beta release
+@
+text
+@; vaspi.def
+
+; virtual ASPI driver for OS/2 2.x
+; (C) 1994 ARS Computer und Consulting GmbH
+
+; Author:  Kai Uwe Rommel <rommel@@jonas>
+; Created: Mon Dec 20 1993
+
+; $Id: vaspi.def,v 1.2 1993/12/22 13:07:08 rommel Exp rommel $
+
+; $Log: vaspi.def,v $
+; Revision 1.2  1993/12/22 13:07:08  rommel
+; Segment definitions added.
+;
+; Revision 1.1  1993/12/20  17:38:11  rommel
+; Initial revision
+
+VIRTUAL DEVICE VASPI
+PROTMODE
+
+SEGMENTS
+    CODE32       CLASS 'CODE'      SHARED    NONDISCARDABLE  RESIDENT
+    _TEXT        CLASS 'CODE'      SHARED    NONDISCARDABLE  RESIDENT
+    CINIT_TEXT   CLASS 'CODE'      SHARED    DISCARDABLE     RESIDENT
+    CSWAP_TEXT   CLASS 'CODE'      SHARED    NONDISCARDABLE
+    CINIT_DATA   CLASS 'DATA'      SHARED    DISCARDABLE     RESIDENT
+    CSWAP_DATA   CLASS 'DATA'      SHARED    NONDISCARDABLE
+    MVDMINSTDATA CLASS 'DATA'      NONSHARED NONDISCARDABLE  RESIDENT
+    SWAPINSTDATA CLASS 'DATA'      NONSHARED NONDISCARDABLE
+    DATA32       CLASS 'DATA'      SHARED    NONDISCARDABLE  RESIDENT
+    _DATA        CLASS 'DATA'      SHARED    NONDISCARDABLE  RESIDENT
+
+; end of vaspi.def
+@
+
+
+1.2
+log
+@Segment definitions added.
+@
+text
+@d2 1
+a2 1
+;
+d4 2
+a5 2
+; (C) 1993 ARS Computer und Consulting GmbH
+;
+d9 1
+a9 1
+; $Id: vaspi.def,v 1.1 1993/12/20 17:38:11 rommel Exp rommel $
+d12 3
+a16 1
+;
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d9 1
+a9 1
+; $Id$
+d11 4
+a14 1
+; $Log$
+d18 12
+@

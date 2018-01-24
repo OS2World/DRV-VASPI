@@ -1,0 +1,325 @@
+.* $Id: german.txt,v 1.13 1994/09/14 12:37:47 rommel Exp rommel $
+.* $Revision: 1.13 $
+
+:h1 res=001.Deutsche Dokumentation
+:p.Virtueller ASPI driver fÅr OS/2 2.x
+.br
+(C) 1994 ARS Computer und Consulting GmbH
+
+:p.Inhalt:
+
+:ol compact.
+:li.:link reftype=hd res=1001 viewport.öberblick:elink.
+:li.:link reftype=hd res=1002 viewport.Installation:elink.
+:li.:link reftype=hd res=1003 viewport.DOS-Einstellungen:elink.
+:li.:link reftype=hd res=1004 viewport.Programmier-Schnittstelle:elink.
+:li.:link reftype=hd res=1005 viewport.Test-Programme:elink.
+:li.:link reftype=hd res=1006 viewport.KompatibilitÑt:elink.
+:li.:link reftype=hd res=1007 viewport.Bekannte Probleme:elink.
+:li.:link reftype=hd res=1008 viewport.Test-Berichte:elink.
+:eol.
+
+:h2 res=1001.öberblick
+:p.OS/2 2.x enthÑlt eine Treiberarchitektur fÅr SCSI-Host-Adapter und
+Peripherie-GerÑte. Diese besteht aus einem Host-Adapter-spezifischen
+Treiber (ADD) sowie darauf aufbauenden GerÑte-Managern (DMD), die
+entweder spezifisch fÅr GerÑteklassen sind (Festplatten,
+CD-ROM-Laufwerke) oder mit einer universellen Schnittstelle fÅr
+weitere, anwendungsspezifische GerÑtetreiber versehen sind.
+
+:p.Einer dieser universellen GerÑte-Manager von OS/2 2.x implementiert
+die von Adaptec entwickelte ASPI-Programmierschnittstelle fÅr
+OS/2. ASPI (Advanced SCSI Programming Interface) erlaubt die
+Entwicklung von Anwendungen, die unabhÑngig vom eingesetzten
+SCSI-Host-Adapter mit angeschlossenen Peripherie-GerÑten kommunizieren
+kînnen. ASPI-Definitionen existieren fÅr DOS, Windows, OS/2 sowie
+Novell NetWare 3.x und 4.x (Server).
+
+:p.Die in OS/2 2.x enthaltene ASPI-Schnittstelle befindet sich im Basis-
+GerÑte-Manager OS2ASPI.DMD (siehe Online-Dokumentation von OS/2). In
+dieser Form werden nur OS/2-GerÑte-Treiber unterstÅtzt, die auf der
+ASPI-Schnittstelle aufbauen. Es kînnen weder OS/2-Anwendungsprogramme
+noch unter OS/2 2.x ablaufende DOS/Windows-Anwendungen direkt auf die
+ASPI-Schnittstelle von OS/2 2.x zugreifen.
+
+:p.Da viele existierende DOS/Windows-Anwendungen zur Kommunikation mit
+SCSI-GerÑten ASPI verwenden (z.B. Backup-Software fÅr SCSI-Band-
+laufwerke oder Scanner-Software fÅr SCSI-Scanner), konnten solche
+Anwendungen bisher nicht unter OS/2 2.x eingesetzt werden.
+
+:p.Der vorliegende virtuelle ASPI-Treiber (VASPI) fÅr OS/2 2.x
+implementiert eine ASPI-Schnittstelle fÅr DOS- und Windows-Anwendungen
+in den DOS- und Win-OS/2-Sessions unter OS/2 2.x. Sowohl die
+ASPI-Definition fÅr DOS als auch die ASPI-Definition fÅr Windows
+wurden implementiert. Au·erdem enthÑlt der VASPI-Treiber eine ASPI-
+Schnittstelle fÅr OS/2-Anwendungen, da diese sonst nicht direkt auf
+das OS/2-ASPI zugreifen kînnen und jeweils eigene GerÑte-Treiber
+benîtigen wÅrden.
+
+:h2 res=1002.Installation
+:p.Der virtuelle ASPI-Treiber besteht aus vier Treiber-Dateien:
+:ol.
+:li.dem physikalischen VASPI-Treiber, der die Verbindung zum OS/2-ASPI
+(das mit BASEDEV=OS2ASPI.DMD installiert wird) herstellt, dieser
+Treiber hei·t VASPIDD.SYS, sowie
+:li.dem virtuellen VASPI-Treiber, der die ASPI-Schnittstelle fÅr 
+DOS-Sitzungen implementiert, dieser Treiber hei·t VASPI.SYS,
+:li.dem Hilfs-Treiber fÅr spezifische DOS-Sitzungen (unter OS/2 von
+DOS-Diskette oder Image-Datei gestartet), VASPISTB.SYS und
+:li.der Windows-DLL, die die ASPI-Schnittstelle fÅr Windows
+implementiert, WINASPI.DLL.
+:eol.
+:p.Zur automatischen Installation des VASPI-Treibers befindet sich
+eine GerÑtetreiber-Konfigurationsdatei auf der VASPI-Diskette. Bitte
+benutzen Sie das GerÑtetreiber-Installationsprogramm im Ordner
+"System-Konfiguration" zur Installation des VASPI-Treibers. Dadurch
+wird auch, falls notwendig, der OS/2-ASPI-Treiber (OS2ASPI.DMD) in
+CONFIG.SYS geladen. Diese Installation setzt allerdings voraus, da·
+der Basis-GerÑtetreiber fÅr Ihren SCSI-Hostadapter bereits installiert
+wurde (siehe unten fÅr nÑhere Informationen). Bitte lesen Sie auch den
+folgenden Text, fÅr Hinweise zur eventuellen Fehlersuche. Nachdem die
+Installation beendet wurde, mÅssen Sie den Rechner neu starten, damit
+die énderungen wirksam werden.
+
+:p.Zur manuellen Installation werden die beiden OS/2-Treiber in der
+CONFIG.SYS wie folgt eingetragen (wir empfehlen, die Treiber in die
+\OS2- bzw. \OS2\MDOS-Verzeichnisse auf Ihrem Boot-Laufwerk zu kopieren):
+:xmp.
+  DEVICE=C&colon.\OS2\VASPIDD.SYS
+  DEVICE=C&colon.\OS2\MDOS\VASPI.SYS
+:exmp.
+:p.Falls Sie die Treiber auf einem anderen Laufwerk oder in einem anderen
+Verzeichnis installiert haben oder Ihr System von einem anderen
+Laufwerk als C&colon. startet, korrigieren Sie bitte die Zeilen
+sinngemÑ·.
+
+:p.ZusÑtzlich zu den VASPI-Treibern mÅssen auch in jedem Fall der
+Basis-Treiber des SCSI-Hostadapters (mit Endung .ADD) und der
+OS/2-ASPI-Treiber (OS2ASPI.DMD) geladen sein. Eine Reihe von
+Hostadaptern wird von OS/2 direkt unterstÅtzt, fÅr viele weitere
+Hostadapter sind OS/2-Treiber (.ADD) vom Hersteller verfÅgbar. FÅr
+den von OS/2 bereits unterstÅtzten Hostadapter vom Typ Adaptec
+AHA-1542 sind in CONFIG.SYS zum Beispiel zu laden:
+:xmp.
+  BASEDEV=AHA154X.ADD /V
+  BASEDEV=OS2ASPI.DMD
+:exmp.
+:p.FÅr andere Hostadapter ist AHA154X.ADD durch den entsprechend
+passenden Treiber zu ersetzen. Weitere Informationen Åber OS2ASPI.DMD
+und die mit OS/2 mitgelieferten ADD-Treiber sowie deren Optionen
+finden sie in der OS/2-(Online-)Dokumentation unter dem Thema BASEDEV.
+
+:p.Die genaue Position der beiden Zeilen mit VASPIDD.SYS und VASPI.SYS
+in der CONFIG.SYS ist nicht wichtig, wir empfehlen jedoch, beide Zeilen
+direkt nach der Zeile BASEDEV=OS2ASPI.DMD einzutragen. 
+
+:p.Die Windows-DLL (WINASPI.DLL) ist in das Win-OS/2-System-Verzeichnis
+zu kopieren, in der Regel C&colon.\OS2\MDOS\WINOS2\SYSTEM oder, bei
+OS/2 fÅr Windows, C&colon.\WINDOWS\SYSTEM.
+
+:p.Der Hilfs-Treiber VASPISTB.SYS sollte in das Verzeichnis
+C&colon.\OS2\MDOS kopiert werden. Er wird nur benîtigt, wenn eine
+spezielle Original-DOS-Version von Diskette oder Disketten-Image unter
+OS/2 gestartet werden soll und darin ASPI benîtigt wird. In diesem Fall
+mu· VASPISTB.SYS in der CONFIG.SYS dieser DOS-Sitzung (nicht der
+CONFIG.SYS von OS/2) geladen werden.
+
+:p.Damit ist die Installation abgeschlossen, Sie mÅssen Ihr System jedoch
+neu starten, damit die énderungen wirksam werden.
+
+:p.Achten Sie darauf, dass beim Start Ihres Systems alle SCSI-GerÑte am
+Rechner korrekt angeschlossen und auch eingeschaltet sind. Die OS/2-
+Treiber fÅr die meisten SCSI-Hostadapter und der OS/2-ASPI-Manager
+prÅfen beim Laden nach, ob Åberhaupt GerÑte zu verwalten sind. Ist
+dies nicht der Fall, so laden sich die Treiber mîglicherweise nicht.
+
+:p.PrÅfen Sie bitte auch, ob die Terminierung des SCSI-Bus korrekt
+installiert ist. Ein hÑufig auftretender Fehler ist, da· sowohl intern
+als auch extern am SCSI-Hostadapter GerÑte angeschlossen wurden, die
+Terminierung auf dem Hostadapter selbst aber nicht entfernt wurde (die
+Terminierung des SCSI-Bus darf nur an den beiden Enden erfolgen). In
+solchen FÑllen werden unter UmstÑnden angeschlossene GerÑte nicht
+erkannt. Die Terminierung auf dem Hostadapter wird in der Regel durch
+Modifikation von Jumpern, DIP-Schaltern oder steckbaren
+Widerstandsleisten oder per Software eingestellt.
+
+:p.Um festzustellen, ob und welche GerÑte vom SCSI-Hostadapter erkannt
+wurden (falls das BIOS Ihres Hostadapters nicht schon beim Selbsttest
+ein Liste der gefundenen GerÑte ausgibt) kînnen Sie dem
+BASEDEV-Treiber Ihres Hostadapters in der CONFIG.SYS die Option /V
+angeben. Die meisten OS/2-ADD-Treiber kennen diese Option und
+reagieren darauf meist mit Ausgabe von Versionsnummern, ggf. Hardware-
+Versionen sowie einer Liste der gefundenen GerÑte.
+
+:p.Laden alle Treiber korrekt, so kînnen Sie schlie·lich mit den
+mitgelieferten Testprogrammen (siehe unten) die Liste der verfÅgbaren
+GerÑte ausgeben. Diese Liste ist oft kuerzer als die vom ADD-Treiber
+ausgegebene, da einige GerÑte bereits von anderen GerÑte-Managern als
+dem ASPI-Manager verwaltet werden und daher nicht fuer ASPI verfÅgbar
+sind.
+
+:h2 res=1003.DOS-Einstellungen
+:p.Wenn Sie die Treiber korrekt installiert haben und Ihr System neu
+gestartet haben, werden Sie in den DOS-Einstellungen fÅr Ihre
+DOS-Programm-Objekte einen neuen Eintrag finden, ASPI_AVAILABLE.
+Dieser Parameter legt fest, ob fÅr die durch dieses Objekt gestartete
+Session das ASPI-Interface verfÅgbar ist oder nicht. Die
+Voreinstellung ist OFF, d.h. das ASPI-Interface ist NICHT verfÅgbar.
+éndern Sie diesen Parameter fÅr alle Programm-Objekte, mit denen Sie
+Ihre ASPI-Anwendungen (DOS bzw. Win-OS/2) starten, auf ON.
+
+:p.Die Voreinstellung (OFF) kann global auf ON geaendert werden, indem
+sie auf der Zeile DEVICE=C&colon.\OS2\MDOS\VASPI.SYS in CONFIG.SYS die
+Option /ON angeben. In diesem Fall haben alle DOS-
+bzw. Win-OS/2-Sessions automatisch ASPI verfuegbar, jedoch koennen Sie
+ASPI fuer jede Session bei Bedarf immer noch getrennt abschalten.
+
+:h2 res=1004.Programmier-Schnittstelle
+:p.Wenn Sie eigene DOS-oder Windows-Anwendungen fÅr ASPI entwickeln
+wollen, so kînnen Sie dies entsprechend der von Adaptec verfÅgbaren
+Dokumentation tun.  Wollen Sie OS/2-Anwendungen entwickeln, die auf
+ASPI zugreifen, wollen jedoch keinen eigenen GerÑte-Treiber dafÅr
+schreiben, so kînnen Sie auf die Programmierschnittstelle von
+VASPIDD.SYS zugreifen.
+
+:p.Beispiele fÅr DOS- und OS/2-Anwendungen dieser Art finden Sie auf der
+mitgelieferten Diskette, im Verzeichnis \SAMPLES. Darin befinden sich
+die Quelltexte der unten erwÑhnten DOS- bzw. OS/2-Testprogramme fÅr
+ASPI sowie eine C-Header-Datei mit den ASPI-Definitionen fÅr DOS- und
+OS/2-Anwendungen.
+
+:p.Das DOS-Beispielprogramm kann mit Microsoft C, Version 6.00 oder neuer
+Åbersetzt werden. FÅr andere Compiler sind énderungen notwendig, da
+das Beispiel den Inline-Assembler fÅr den Zugriff auf die
+DOS-ASPI-Schnittstelle benutzt. Dieses Beispielprogramm funktioniert
+natÅrlich auch unter normalem DOS mit ASPI-Treibern.
+
+:p.Das OS/2-Beispielprogramm kann als 16-bit-Anwendung mit Microsoft C,
+Version 6.00 oder Watcom C/C++ 16, Version 9.5 Åbersetzt werden. Zur
+Erzeugung einer 32-bit-Anwendung kann IBM C Set++, Watcom C/C++ 32,
+Version 9.5, oder der GNU-C-Compiler verwendet werden. FÅr andere
+OS/2-Compiler sollten nur minimale énderungen notwendig sein, da fÅr
+den Zugriff auf VASPIDD.SYS die Standard-I/O-Control-Schnittstelle
+verwendet wird.
+
+:p.Die Programmier-Schnittstelle fÅr OS/2-Anwendungen kennt zwar wie die
+DOS- und Windows-ASPI-Definitionen auch einen "posting" und "non-
+posting" Modus (siehe Adaptec-Dokumentation fÅr ASPI), jedoch ist
+unter OS/2 aufgrund der Systemarchitektur ein "posting" nur fÅr
+GerÑtetreiber mîglich. SCSI-Requests, die Åber die Programmier-
+Schnittstelle in VASPIDD.SYS aufgerufen werden, werden immer im
+"posting"-Modus abgearbeitet, jedoch befindet sich die Post-Routine
+innerhalb dieses Treibers und es kann keine Post-Routine in der
+Anwendung definiert werden. Das bedeutet, da· Aufrufe Åber diese
+Programmier-Schnittstelle erst zur Anwendung zurÅckkehren, wenn der
+gewÅnschte SCSI-Request vollstÑndig abgearbeitet wurde, die Anwendung
+blockiert also in diesem Aufruf fÅr diese Zeit. Dies betrifft jedoch
+nur den aufrufenden Thread. Wenn die Anwendung also zur gleichen Zeit
+noch andere Aufgaben erledigen soll, mu· sie "multi-threaded"
+geschrieben sein.
+
+:p.Das "posting" fÅr die DOS- und Windows-ASPI- Schnittstellen
+funktioniert jedoch, es wird vom virtuellen ASPI-Treiber simuliert, da
+dies von existierenden DOS- und Windows- Anwendungen verwendet wird.
+
+:p.Es kînnen mehrere Anwendungen bzw. Threads gleichzeitig auf die
+Schnittstelle zugreifen, der Treiber VASPIDD.SYS ist reentrant.
+
+:h2 res=1005.Test-Programme
+:p.Auf der Diskette befinden sich zwei Test-Programme, ASPI.EXE (eine
+DOS-Anwendung) und ASPI2.EXE (eine OS/2-Anwendung), die zur Diagnose
+verwendet werden kînnen. Dies sind zugleich Beispielprogramme (siehe
+oben) und werden auch als Quelltext mitgeliefert.
+
+:p.Beide Programme, sowohl DOS- als auch OS/2-Version, verwenden ASPI, um
+alle im System vorhandenen SCSI-Host-Adapter anzuzeigen sowie alle an
+diese angeschlossenen SCSI-PeripheriegerÑte, sofern sie nicht bereits
+(im Falle von Festplatten und CD-ROM-Laufwerken) von einem anderen
+GerÑte-Manager verwaltet werden. Bei allen gefundenen GerÑten werden
+Typ und Hersteller- bzw. GerÑte-Name ausgegeben.
+
+:h2 res=1006.KompatibilitÑt
+:p.Folgende DOS- bzw. Windows-Anwendungen wurden bisher erfolgreich auf
+KompatibilitÑt getestet:
+:ol.
+:li.SCSI-Tape-Backup-Software (mit einem Tandberg TDC-4100)
+:ul compact.
+:li.NovaStore NovaBack, Version 3.57
+:li.CorelSCSI Tape Backup fÅr DOS, Version 1.22
+:li.CorelSCSI Tape Backup fÅr Windows, Version 1.14
+:li.Cheyenne ARCserve/Solo fÅr DOS, Version 2.11
+:li.GNU-tar (GTAK 1.00)
+:li.GNU-tar (ASPI-TAR)
+:eul.
+:li.SCSI-Scanner-Software
+:ul compact.
+:li.HP DeskScan fÅr Windows, Versionen 1.51 und 2.0
+:li.Calera WordScan+ fÅr Windows (OCR-Software mit Scanner-Interface)
+:li.Caere OmniPage 2.10 fÅr Windows (OCR software mit Scanner-Interface)
+:li.ImpOS/2 1.10 (Bildbearbeitungs-Software mit Scanner-Interface)
+.br
+Diese OS/2-Software kann Åber ein Hilfsprogramm auf einen
+DOS-GerÑtetreiber fÅr HP-Scanner in einer DOS-Session zugreifen.
+:eul.
+:lp.(Diese Programme wurden mit einem HP ScanJet IIcx und dessen
+mitgeliefertem ASPI-kompatiblen DOS-Treiber SJIIX.SYS getestet.)
+:ul compact.
+:li.HighScan fÅr Windows, Version 3.1, Scanner: Siemens ST-400
+:li.Agfa PC View Color, Version 1.02, Scanner: Agfa Arcus Plus
+:li.Agfa FotoLook, Version 1.26E, Scanner: Agfa Arcus Plus
+:li.egsSoft Keyfile ScanServer, Scanner: Fujitsu M3096G
+:li.Umax Magic Scan fÅr Windows, Scanner: Umax Power Look
+:li.PhotoShop 2.5.5 fÅr Windows, Scanner: Microtek IISPX
+:eul.
+:lp.Die Programme HP DeskScan, Agfa FotoLook und Umax Magic Scan
+stellen auch eine TWAIN-Schnittstelle zur VerfÅgung, so da· damit und
+den entsprechenden Scannern auch andere Windows-Programme
+funktionieren, die Scanner Åber eine TWAIN-Schnittstelle ansprechen
+kînnen, z.B. Adobe PhotoStyler, Picture Publisher oder Corel
+PhotoPaint (aus Corel Draw 4.0 fÅr Windows).
+:li.Sonstige SCSI-Software
+:ul compact.
+:li.DataStore fÅr Windows, Reflection Systems MOD-Laufwerk 7030e
+:eul.
+:eol.
+:p.Sollten Sie andere Software mit dem VASPI-Treiber einsetzen, die hier
+nicht aufgefÅhrt ist, bitten wir Sie um eine kurze Mitteilung, damit
+wir Ihre Software in unsere KompatibilitÑts-Liste aufnehmen kînnen.
+
+:h2 res=1007.Bekannte Probleme
+:ul.
+:li.Wird fuer eine DOS-Session das ASPI-Interface abgeschaltet, so kann
+eventuell manche ASPI-kompatible Software irrtuemlich annehmen, es sei
+dennoch eine ASPI-Schnittstelle vorhanden. Alle ASPI-AuftrÑge werden
+jedoch in diesem Fall fehlschlagen.
+
+:li.Werden Windows-Programme, die ASPI benutzen, in WIN-OS/2-Sitzungen
+vom Gesamt-Bildschirmtyp eingesetzt, so ist es normal, wenn sich
+wÑhrend der Wartezeit bei lang dauernden SCSI-Befehlen (zum Beispiel
+Band zurÅckspulen usw.) der Mauszeiger nicht bewegen lÑ·t. Das ist
+darauf zurÅckzufÅhren, da· diese Sitzung wÑhrend dieser Zeit im
+ASPI-Treiber blockiert ist.
+
+:li.Der Betrieb der Central Point Backup-Programme in den DOS- (8.0,
+9.0) und Windows-Versionen (2.0) von PC-TOOLS mit dem VASPI-Treiber
+ist nicht zuverlÑssig mîglich. Zwar kînnen diese Programme auf
+SCSI-Bandlaufwerke zugreifen, jedoch treten in unregelmÑ·igen
+AbstÑnden AbstÅrze auf, die eine Beendigung der jeweiligen DOS-
+bzw. WIN-OS/2-Sitzung zur Folge haben.
+:eul.
+
+:h2 res=1008.Test-Berichte
+:p.Sollten Sie mit einer ASPI-kompatiblen DOS- oder Windows-Software
+Probleme beim Einsatz mit dem VASPI-Treiber haben, bitten wir um
+öbersendung eines Fehler-Berichtes mit folgenden Angaben:
+:ul compact.
+:li.Version und Seriennummer des VASPI-Treibers
+:li.genaue Art, Bezeichnung, Version und Hersteller der Software
+:li.Typ und Hersteller des SCSI-Peripherie-GerÑtes
+:li.Typ und Hersteller des SCSI-Hostadapters
+:li.Ursprung, Name und Datum/Grî·e des Host-Adapter-Treibers (.ADD)
+:li.Ursprung, Name und Datum/Grî·e des OS/2-ASPI-Treibers (OS2ASPI.DMD)
+:li.Betriebssystem-Version (falls Sie nicht OS/2 2.1 einsetzen)
+:li.Computer-Architektur (ISA, EISA, MCA, PCI)
+:eul.
+:p.sowie Ihrer Anschrift, Telefon- und Fax-Nummer.

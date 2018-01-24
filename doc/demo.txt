@@ -1,0 +1,16 @@
+Virtual ASPI driver for OS/2 2.x
+(C) 1994 ARS Computer und Consulting GmbH
+
+
+English:
+  DEMO.EXE (a self-extracting archive file) contains a demonstration
+  version of the VASPI driver. You can give this file (and ONLY this
+  file and ONLY without any modification) to everyone who wants to
+  evaluate VASPI.
+
+
+Deutsch:
+  DEMO.EXE (eine selbst-extrahierende Archiv-Datei) enth„lt eine
+  Demonstrations-Version des VASPI-Treibers. Sie k”nnen diese Datei (und
+  NUR diese Datei und NUR ohne jegliche Modifikationen) an jeden
+  Interessenten weitergeben, der VASPI testen m”chte.

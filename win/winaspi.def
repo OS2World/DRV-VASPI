@@ -1,0 +1,38 @@
+; winaspi.def
+
+; virtual ASPI driver for OS/2 2.x
+; (C) 1994 ARS Computer und Consulting GmbH
+
+; Author:  Kai Uwe Rommel <rommel@jonas>
+; Created: Wed Mar 02 1994
+
+; $Id: winaspi.def,v 1.3 1994/03/09 15:45:40 rommel Exp $
+; $Revision: 1.3 $
+
+; $Log: winaspi.def,v $
+; Revision 1.3  1994/03/09 15:45:40  rommel
+; back to shared data, required
+;
+; Revision 1.2  1994/03/04 14:39:42  rommel
+; first working version
+;
+; Revision 1.1  1994/03/02 14:54:16  rommel
+; Initial revision
+;
+
+LIBRARY WINASPI
+EXETYPE WINDOWS
+
+DESCRIPTION 'WINASPI interface for VASPI'
+
+CODE PRELOAD MOVEABLE
+DATA PRELOAD MOVEABLE
+
+HEAPSIZE 4096
+
+EXPORTS
+  WEP @1 RESIDENTNAME
+  GETASPISUPPORTINFO     
+  SENDASPICOMMAND	
+
+; end of winaspi.def

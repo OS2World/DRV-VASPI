@@ -1,0 +1,342 @@
+head	1.11;
+access;
+symbols
+	release3:1.8
+	release2:1.5
+	release1:1.5;
+locks; strict;
+comment	@ * @;
+
+
+1.11
+date	94.09.14.12.15.28;	author rommel;	state Exp;
+branches;
+next	1.10;
+
+1.10
+date	94.05.26.12.48.32;	author rommel;	state Exp;
+branches;
+next	1.9;
+
+1.9
+date	94.04.20.11.53.35;	author rommel;	state Exp;
+branches;
+next	1.8;
+
+1.8
+date	94.03.29.16.08.40;	author rommel;	state Exp;
+branches;
+next	1.7;
+
+1.7
+date	94.03.11.17.25.59;	author rommel;	state Exp;
+branches;
+next	1.6;
+
+1.6
+date	94.03.09.17.29.37;	author rommel;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	94.02.02.13.22.39;	author rommel;	state release1;
+branches;
+next	1.4;
+
+1.4
+date	94.01.09.20.19.53;	author rommel;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	93.12.22.18.21.48;	author rommel;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	93.12.22.13.06.21;	author rommel;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	93.12.20.16.16.41;	author rommel;	state Exp;
+branches;
+next	;
+
+
+desc
+@virtual ASPI driver for OS/2 2.x
+@
+
+
+1.11
+log
+@new init method, allows real stub for specific DOS sessions
+@
+text
+@/* vaspi.h
+ *
+ * virtual ASPI driver for OS/2 2.x
+ * (C) 1994 ARS Computer und Consulting GmbH
+ *
+ * Author:  Kai Uwe Rommel <rommel@@jonas>
+ * Created: Mon Dec 20 1993
+ */
+ 
+/* $Id: vaspi.h,v 1.10 1994/05/26 12:48:32 rommel Exp rommel $ */
+/* $Revision: 1.10 $ */
+
+/*
+ * $Log: vaspi.h,v $
+ * Revision 1.10  1994/05/26 12:48:32  rommel
+ * fix for NetWare requester
+ *
+ * Revision 1.9  1994/04/20 11:53:35  rommel
+ * fourth release
+ *
+ * Revision 1.8  1994/03/29 16:08:40  rommel
+ * third release
+ *
+ * Revision 1.7  1994/03/11 17:25:59  rommel
+ * changes for VDHPushInt method
+ *
+ * Revision 1.6  1994/03/09 17:29:37  rommel
+ * new version using VDHPushFarCall
+ *
+ * Revision 1.5  1994/02/02 13:22:39  rommel
+ * beta release
+ *
+ * Revision 1.4  1994/01/09 20:19:53  rommel
+ * first somewhat working version
+ *
+ * Revision 1.3  1993/12/22 18:21:48  rommel
+ * Added interface to physical device.
+ *
+ * Revision 1.2  1993/12/22  13:06:21  rommel
+ * Restructured, stub DD added.
+ *
+ * Revision 1.1  1993/12/20  16:16:41  rommel
+ * Initial revision
+ */
+
+#ifndef _VASPI_H
+#define _VASPI_H
+
+#define EXPIRE          15
+
+#define PDDNAME         "VASPIDD$"
+#define PROPERTYNAME    "ASPI_AVAILABLE"
+
+#define ASPI_REQ        0x80
+#define ASPI_VDDREQ     0x81
+#define ASPI_DEBUG      0x90
+#define ASPI_DEMO       0x91
+
+#define MPLEX           0x2F
+#define MPLEX_POST      0xC701
+#define MPLEX_ASPI      0xC702
+#define INIT_INT        0x5A
+
+#define FALSE  0
+#define TRUE   1
+
+extern _System _printf(char *, ...);
+#define printf _printf
+
+/* main.c */
+
+extern HVDM owner_VDM;
+extern HHOOK hBPHook;
+extern HHOOK hTimerHook;
+extern HHOOK hRetHook;
+extern VPDOSDDTYPE DosDDHeader;
+extern HFILE hASPI;
+extern BOOL bDemoVersion;
+extern BOOL bASPIAvailable;
+extern PCHAR pBuffer;
+
+/* aspi.c */
+
+extern BOOL HOOKENTRY VirtualASPI(PVOID pHookData, PCRF pcrf);
+extern BOOL HOOKENTRY PostTimer(PVOID pHookData, PCRF pcrf);
+extern BOOL HOOKENTRY PostReturn(PVOID pHookData, PCRF pcrf);
+
+#endif /* _VASPI_H */
+
+/* end of vaspi.h */
+@
+
+
+1.10
+log
+@fix for NetWare requester
+@
+text
+@d10 2
+a11 2
+/* $Id: vaspi.h,v 1.9 1994/04/20 11:53:35 rommel Exp rommel $ */
+/* $Revision: 1.9 $ */
+d15 3
+d62 1
+@
+
+
+1.9
+log
+@fourth release
+@
+text
+@d10 2
+a11 2
+/* $Id: vaspi.h,v 1.8 1994/03/29 16:08:40 rommel Exp rommel $ */
+/* $Revision: 1.8 $ */
+a12 3
+/* $Log: vaspi.h,v $
+/* Revision 1.8  1994/03/29 16:08:40  rommel
+/* third release
+d14 7
+d41 1
+a41 1
+ * */
+a56 1
+#define MPLEX_ASPI      0xC700
+d58 1
+d62 3
+@
+
+
+1.8
+log
+@third release
+@
+text
+@d10 2
+a11 2
+/* $Id: vaspi.h,v 1.7 1994/03/11 17:25:59 rommel Exp rommel $ */
+/* $Revision: 1.7 $ */
+d14 3
+d42 2
+d47 5
+d67 2
+@
+
+
+1.7
+log
+@changes for VDHPushInt method
+@
+text
+@d10 2
+a11 2
+/* $Id: vaspi.h,v 1.6 1994/03/09 17:29:37 rommel Exp rommel $ */
+/* $Revision: 1.6 $ */
+d14 3
+d43 2
+a44 2
+#define MPLEX_ASPI      0xC7
+#define MPLEX_POST      0xC6
+@
+
+
+1.6
+log
+@new version using VDHPushFarCall
+@
+text
+@d10 2
+a11 2
+/* $Id: vaspi.h,v 1.5 1994/02/02 13:22:39 rommel release1 rommel $ */
+/* $Revision: 1.5 $ */
+d14 3
+d36 6
+a41 2
+#define PDDNAME "VASPIDD$"
+#define PROPERTYNAME "ASPI_AVAILABLE"
+@
+
+
+1.5
+log
+@beta release
+@
+text
+@d10 2
+a11 2
+/* $Id: vaspi.h,v 1.4 1994/01/09 20:19:53 rommel Exp rommel $ */
+/* $Revision: 1.4 $ */
+d14 3
+d42 3
+d52 2
+@
+
+
+1.4
+log
+@first somewhat working version
+@
+text
+@d4 2
+a5 2
+ * (C) 1993 ARS Computer und Consulting GmbH
+
+d10 2
+a11 1
+/* $Id: vaspi.h,v 1.3 1993/12/22 18:21:48 rommel Exp rommel $ */
+d14 3
+a29 1
+#define VERSION "0.0"
+d31 1
+d41 1
+@
+
+
+1.3
+log
+@Added interface to physical device.
+@
+text
+@d10 1
+a10 1
+/* $Id: vaspi.h,v 1.2 1993/12/22 13:06:21 rommel Exp rommel $ */
+d13 3
+d27 1
+@
+
+
+1.2
+log
+@Restructured, stub DD added.
+@
+text
+@d10 1
+a10 1
+/* $Id: vaspi.h,v 1.1 1993/12/20 16:16:41 rommel Exp rommel $ */
+d13 3
+d32 1
+d36 1
+a36 1
+extern BOOL HOOKENTRY VASPI(PVOID pHookData, PCRF pcrf);
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d10 1
+a10 1
+/* $Id$ */
+d12 4
+a15 1
+/* $Log$ */
+d22 2
+a23 3
+/* init.c */
+
+extern BOOL EXPENTRY Init(PSZ);
+d28 5
+a32 2
+extern BOOL HOOKENTRY Create(HVDM);
+extern BOOL HOOKENTRY Terminate(HVDM);
+@

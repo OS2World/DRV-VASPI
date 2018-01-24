@@ -1,0 +1,357 @@
+Microsoft (R) Macro Assembler Version 5.10A.15 Jul 07 15:2  1/2/95 14:18:50
+
+                                                             Page     1-1
+
+
+				;;; stub.asm
+				
+				;;; virtual ASPI driver for OS/2 2.x
+				;;; (C) 1994 ARS Computer und Consulting GmbH
+				
+				;;; Author:  Kai Uwe Rommel <rommel@jonas>
+				;;; Created: Wed Dec 22 1993
+				
+				;;; $Id: stub.asm,v 1.12 1994/09/14 12:15:00 ro
+				mmel Exp rommel $
+				;;; $Revision: 1.12 $
+				
+				;;; $Log: stub.asm,v $
+				;;; Revision 1.12  1994/09/14 12:15:00  rommel
+				;;; new init method, allows real stub for speci
+				fic DOS sessions
+				;;;
+				;;; Revision 1.11  1994/05/26 12:48:20  rommel
+				;;; fix for NetWare requester
+				;;;
+				;;; Revision 1.10  1994/04/20 11:54:37  rommel
+				;;; fourth release
+				;;;
+				;;; Revision 1.9  1994/03/29 16:09:50  rommel
+				;;; now using VDHPushInt, simplified
+				;;;
+				;;; Revision 1.8  1994/03/09 17:29:00  rommel
+				;;; new version using VDHPushFarCall
+				;;;
+				;;; Revision 1.7  1994/03/03 16:52:08  rommel
+				;;; changes for WINASPI.DLL
+				;;;
+				;;; Revision 1.6  1994/03/01 16:18:53  rommel
+				;;; second release
+				;;;
+				;;; Revision 1.5  1994/03/01 15:30:22  rommel
+				;;; bug fix for post mode
+				;;;
+				;;; Revision 1.4  1994/02/04 17:43:43  rommel
+				;;; first release
+				;;;
+				;;; Revision 1.3  1994/02/02 13:22:39  rommel
+				;;; beta release
+				;;;
+				;;; Revision 1.2  1994/01/27 13:00:02  rommel
+				;;; first test release
+				;;;
+				;;; Revision 1.1  1993/12/22 13:07:23  rommel
+				;;; Initial revision
+				
+					.186
+					PAGE	255,132
+				
+				REQHDR	STRUC
+ 0000  00				rh_reqlen   	DB      ?
+ 0001  00				rh_unit     	DB      ?
+ 0002  00				rh_command  	DB      ?
+ 0003  0000				rh_status   	DW      ?
+ 0005  0008[				rh_rs2      	DB      8 DUP (?)
+	   ??			
+			 ]	
+				
+ 000D  00				rh_units    	DB      ?
+ 000E  00000000				rh_addr     	DD      ?
+ 0012  0000				rh_count    	DW      ?
+ 0014  0000				rh_rs3      	DW	?
+ 0016				REQHDR ENDS
+				
+ = 001C				tick	EQU	01CH
+ = 002F				int2f	EQU	02FH
+ = 005A				ini_int	EQU	05AH
+				
+ = C701				mp_post	EQU	0C701H
+ = C702				mp_aspi	EQU	0C702H
+					
+ 0000				CODE	SEGMENT BYTE PUBLIC 'CODE'
+				
+				        ASSUME CS:CODE,DS:CODE,ES:CODE
+ 0000				        ORG 00000H
+				
+				;;; The next few lines are used by an REXX script
+				;;; to convert the listing file into an .ASM file.
+				;;;
+				;;; #### HEADERFILE=stub.h
+				;;; #### ENTRYPOINT=StubStart
+				;;; #### LENGTH=StubLength
+				;;;
+				;;; #### BEGIN EXTRACTION
+				
+ 0000				start:	
+				
+ 0000  FFFFFFFF			header	DD	-1		; link to next driver; -1 = end of list
+ 0004  C800			attrib	DW  	0C800h		; character, ioctl, ibm, removable
+ 0006  006F R				DW  	strat
+ 0008  007A R				DW  	inter
+ 000A  53 43 53 49 4D 47		DB  	'SCSIMGR$'      ; Device name
+       52 24			
+ 0012  0000				DW  	0               ; reserved (must be zero)
+ 0014  00				DB  	0               ; drive letter (must be zero)
+ 0015  00				DB  	0               ; number of units supported
+				
+ 0016  00000000			reqhdr	DD 	?               ; address of Request Header
+					
+ 001A  00000000			old2f	DD	?		; old multiplex (2F) interrupt vector
+				
+ 001E  00000000			vector	DD	?		; address of VASPI hook routine
+ 0022  0000			avail	DW	0		; is ASPI available to this session?
+				
+ 0024				aspi	PROC FAR
+				
+ 0024  EB 03				jmp	SHORT entry
+ 0026  90				nop
+ 0027  90				nop
+ 0028  90				nop
+					
+ 0029  55			entry:	push	bp
+ 002A  8B EC				mov	bp,sp
+				
+ 002C  53				push	bx
+ 002D  06				push	es
+					
+ 002E  8B 5E 06				mov	bx,[bp+6]
+ 0031  8E 46 08				mov	es,[bp+8]
+				
+ 0034  9C				pushf
+ 0035  2E: FF 1E 001E R			call	cs:vector
+				
+ 003A  07				pop	es
+ 003B  5B				pop	bx
+						
+ 003C  5D				pop	bp
+ 003D  CB			        ret
+				
+ 003E				aspi	ENDP
+				
+ 003E				mplex	PROC FAR
+				
+ 003E  3D C702				cmp	ax,mp_aspi
+ 0041  75 10				jne	post
+				
+ 0043  06				push	es
+ 0044  53				push	bx
+					
+ 0045  8E C3				mov	es,bx
+ 0047  BB 0000				mov	bx,0
+ 004A  9C				pushf
+ 004B  2E: FF 1E 001E R			call	cs:vector
+					
+ 0050  5B				pop	bx
+ 0051  07				pop	es
+					
+ 0052  CF				iret
+				
+ 0053  3D C701			post:	cmp	ax,mp_post
+ 0056  75 12				jne	old
+				
+ 0058  60				pusha
+ 0059  1E				push	ds
+ 005A  06				push	es
+					
+ 005B  8E C1				mov	es,cx
+ 005D  06				push	es
+ 005E  53				push	bx
+ 005F  26: FF 5F 1A			call	DWORD PTR es:[bx+26] 	; post routine offset in SRB
+ 0063  83 C4 04				add	sp,4
+					
+ 0066  07				pop	es
+ 0067  1F				pop	ds
+ 0068  61				popa
+					
+ 0069  CF				iret
+					
+ 006A  2E: FF 2E 001A R		old:	jmp	cs:old2f
+				
+ 006F				mplex	ENDP
+				
+ 006F				strat	PROC FAR
+				
+ 006F  2E: 89 1E 0016 R		        mov	WORD PTR cs:[reqhdr],bx
+ 0074  2E: 8C 06 0018 R		        mov	WORD PTR cs:[reqhdr+2],es
+ 0079  CB			        ret
+				
+ 007A				strat	ENDP
+				
+ 007A				inter	PROC FAR
+				
+ 007A  50			        push    ax
+ 007B  53			        push    bx
+ 007C  06			        push    es
+				
+ 007D  2E: C4 1E 0016 R		        les     bx,cs:[reqhdr]
+ 0082  26: C7 47 03 0100	        mov     WORD PTR es:[bx.rh_status],00100H	;  OK
+ 0088  26: 8A 47 02		        mov     al,es:[bx.rh_command]
+				
+ 008C  3C 00			        cmp     al,0
+ 008E  74 08			        jz      init
+ 0090  3C 03				cmp	al,3
+ 0092  74 4F				jz	ioctl
+				;	cmp	al,13
+				;	jz	open
+				
+ 0094  07			exit:	pop     es
+ 0095  5B			        pop     bx
+ 0096  58			        pop     ax
+ 0097  CB			        ret
+				
+ 0098  26: C7 47 0E 010E R	init:	mov     WORD PTR es:[bx.rh_addr],OFFSET drvend
+ 009E  26: 8C 4F 10		        mov     WORD PTR es:[bx.rh_addr+2],cs
+				
+ 00A2  06				push	es
+ 00A3  53				push	bx
+ 00A4  B8 C702				mov	ax,mp_aspi
+ 00A7  CD 5A				int	ini_int			; ask VDD for entry point
+ 00A9  3D C702				cmp	ax,mp_aspi
+ 00AC  74 0D				jz	novdd
+ 00AE  A3 0022 R			mov	avail,ax
+ 00B1  2E: 89 1E 001E R			mov	WORD PTR cs:vector,bx
+ 00B6  2E: 8C 06 0020 R			mov	WORD PTR cs:vector+2,es
+ 00BB  5B			novdd:	pop	bx
+ 00BC  07				pop	es
+				
+ 00BD  FA				cli	
+ 00BE  6A 00				push	0
+ 00C0  07				pop	es
+					
+ 00C1  BB 00BC			        mov     bx,int2f * 4		; set multiplex (2F) interrupt vector
+ 00C4  26: FF 37		        push    es:[bx]
+ 00C7  26: FF 77 02		        push    es:[bx+2]
+ 00CB  2E: 8F 06 001C R			pop	WORD PTR cs:old2f+2
+ 00D0  2E: 8F 06 001A R			pop	WORD PTR cs:old2f
+ 00D5  68 003E R			push	OFFSET mplex
+ 00D8  0E				push	cs
+ 00D9  26: 8F 47 02			pop     es:[bx+2]
+ 00DD  26: 8F 07			pop     es:[bx]
+					
+ 00E0  FB				sti
+				
+ 00E1  EB B1			        jmp     exit
+				
+ 00E3  83 3E 0022 R 01		ioctl:	cmp	avail,1
+ 00E8  74 06				jz	ioctl2
+ 00EA  26: C7 47 03 8102	        mov     WORD PTR es:[bx.rh_status],08102H	;  ERROR
+ 00F0  26: C4 5F 0E		ioctl2:	les	bx,es:[bx.rh_addr]
+ 00F4  26: C7 07 0024 R			mov	WORD PTR es:[bx],OFFSET aspi
+ 00F9  26: 8C 4F 02			mov	WORD PTR es:[bx+2],cs
+ 00FD  EB 95				jmp	exit
+					
+ 00FF  83 3E 0022 R 01		open:	cmp	avail,1
+ 0104  74 06				jz	open2
+ 0106  26: C7 47 03 8102	        mov     WORD PTR es:[bx.rh_status],08102H	;  ERROR
+ 010C  EB 86			open2:	jmp	exit
+Microsoft (R) Macro Assembler Version 5.10A.15 Jul 07 15:2  1/2/95 14:18:50
+
+                                                             Page     1-2
+
+
+				
+ 010E				inter	ENDP
+				
+ 010E				drvend	LABEL BYTE
+				
+				;;;
+				;;; #### END EXTRACTION
+				;;;
+				
+ 010E				CODE    ENDS
+				
+				        END	start
+Microsoft (R) Macro Assembler Version 5.10A.15 Jul 07 15:2  1/2/95 14:18:50
+
+                                                             Symbols-1
+
+
+Structures and Records:
+
+                N a m e                 Width   # fields
+                                        Shift   Width   Mask    Initial
+
+REQHDR . . . . . . . . . . . . .  	0016	0009
+  rh_reqlen  . . . . . . . . . .  	0000
+  rh_unit  . . . . . . . . . . .  	0001
+  rh_command . . . . . . . . . .  	0002
+  rh_status  . . . . . . . . . .  	0003
+  rh_rs2 . . . . . . . . . . . .  	0005
+  rh_units . . . . . . . . . . .  	000D
+  rh_addr  . . . . . . . . . . .  	000E
+  rh_count . . . . . . . . . . .  	0012
+  rh_rs3 . . . . . . . . . . . .  	0014
+
+Segments and Groups:
+
+                N a m e         	Length	 Align	Combine Class
+
+CODE . . . . . . . . . . . . . .  	010E	BYTE	PUBLIC	'CODE'
+
+Symbols:            
+
+                N a m e         	Type	 Value	 Attr
+
+aspi . . . . . . . . . . . . . .  	F PROC	0024	CODE	Length = 001A
+attrib . . . . . . . . . . . . .  	L WORD	0004	CODE
+avail  . . . . . . . . . . . . .  	L WORD	0022	CODE
+
+drvend . . . . . . . . . . . . .  	L BYTE	010E	CODE
+
+entry  . . . . . . . . . . . . .  	L NEAR	0029	CODE
+exit . . . . . . . . . . . . . .  	L NEAR	0094	CODE
+
+header . . . . . . . . . . . . .  	L DWORD	0000	CODE
+
+ini_int  . . . . . . . . . . . .  	NUMBER	005A	
+init . . . . . . . . . . . . . .  	L NEAR	0098	CODE
+int2f  . . . . . . . . . . . . .  	NUMBER	002F	
+inter  . . . . . . . . . . . . .  	F PROC	007A	CODE	Length = 0094
+ioctl  . . . . . . . . . . . . .  	L NEAR	00E3	CODE
+ioctl2 . . . . . . . . . . . . .  	L NEAR	00F0	CODE
+
+mp_aspi  . . . . . . . . . . . .  	NUMBER	C702	
+mp_post  . . . . . . . . . . . .  	NUMBER	C701	
+mplex  . . . . . . . . . . . . .  	F PROC	003E	CODE	Length = 0031
+
+novdd  . . . . . . . . . . . . .  	L NEAR	00BB	CODE
+
+old  . . . . . . . . . . . . . .  	L NEAR	006A	CODE
+old2f  . . . . . . . . . . . . .  	L DWORD	001A	CODE
+open . . . . . . . . . . . . . .  	L NEAR	00FF	CODE
+open2  . . . . . . . . . . . . .  	L NEAR	010C	CODE
+
+post . . . . . . . . . . . . . .  	L NEAR	0053	CODE
+
+reqhdr . . . . . . . . . . . . .  	L DWORD	0016	CODE
+
+start  . . . . . . . . . . . . .  	L NEAR	0000	CODE
+strat  . . . . . . . . . . . . .  	F PROC	006F	CODE	Length = 000B
+
+tick . . . . . . . . . . . . . .  	NUMBER	001C	
+
+vector . . . . . . . . . . . . .  	L DWORD	001E	CODE
+
+@Cpu . . . . . . . . . . . . . .  	TEXT  259		
+@FileName  . . . . . . . . . . .  	TEXT  stub		
+@Version . . . . . . . . . . . .  	TEXT  510		
+
+
+    257 Source  Lines
+    257 Total   Lines
+     43 Symbols
+
+  42256 Bytes symbol space free
+
+      0 Warning Errors
+      0 Severe  Errors

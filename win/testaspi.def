@@ -1,0 +1,33 @@
+; testaspi.def
+
+; virtual ASPI driver for OS/2 2.x
+; (C) 1994 ARS Computer und Consulting GmbH
+
+; Author:  Kai Uwe Rommel <rommel@jonas>
+; Created: Wed Mar 02 1994
+
+; $Id: testaspi.def,v 1.1 1994/03/09 15:52:48 rommel Exp $
+; $Revision: 1.1 $
+
+; $Log: testaspi.def,v $
+; Revision 1.1  1994/03/09 15:52:48  rommel
+; Initial revision
+;
+
+NAME TESTASPI
+EXETYPE WINDOWS
+
+CODE PRELOAD MOVEABLE
+DATA PRELOAD MOVEABLE MULTIPLE
+
+HEAPSIZE 1024
+STACKSIZE 4096
+
+EXPORTS
+  WINDOWPROC
+
+IMPORTS		
+  WINASPI.GETASPISUPPORTINFO
+  WINASPI.SENDASPICOMMAND
+
+; end of testaspi.def

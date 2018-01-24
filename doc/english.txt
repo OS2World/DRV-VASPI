@@ -1,0 +1,308 @@
+.* $Id: english.txt,v 1.7 1994/09/14 12:37:36 rommel Exp rommel $
+.* $Revision: 1.7 $
+
+:h1 res=002.English Documentation
+:p.Virtual ASPI driver for OS/2 2.x
+.br
+(C) 1994 ARS Computer und Consulting GmbH
+
+:p.Contents:
+
+:ol compact.
+:li.:link reftype=hd res=2001 viewport.Overview:elink.
+:li.:link reftype=hd res=2002 viewport.Installation:elink.
+:li.:link reftype=hd res=2003 viewport.DOS Settings:elink.
+:li.:link reftype=hd res=2004 viewport.Programmer's API:elink.
+:li.:link reftype=hd res=2005 viewport.Test Programs:elink.
+:li.:link reftype=hd res=2006 viewport.Compatibility:elink.
+:li.:link reftype=hd res=2007 viewport.Known Problems:elink.
+:li.:link reftype=hd res=2008 viewport.Test/Problem Reports:elink.
+:eol.
+
+:h2 res=2001.Overview
+:p.OS/2 2.x contains a driver architecture for SCSI host adaptors and
+peripheral devices. It consists of a host adaptor specific driver
+(ADD) and, based on this, device managers (DMD) which are either
+specific for common classes of devices (hard disks, CD-ROM drives) or
+which provide a universal interface for additional application
+specific device drivers.
+
+:p.One of these universal device managers in OS/2 2.x implements
+Adaptec's ASPI programming interface for OS/2. ASPI (Advanced SCSI
+Programming Interface) allows development of applications, which can
+communicate with peripheral devices, independent of the actual SCSI
+host adaptor. ASPI definitions exist for DOS, Windows, OS/2 and Novell
+NetWare 3.x and 4.x servers.
+
+:p.The ASPI programming interface in OS/2 2.x resides in the base device
+manager OS2ASPI.DMD (please refer to the OS/2 online documentation for
+more information about it). In this implementation, it supports only
+OS/2 device drivers which build upon the ASPI interface. Neither can
+OS/2 applications nor can DOS and Windows applications running under
+OS/2 2.x access the ASPI interface of OS/2 2.x directly.
+
+:p.Since many existing DOS and Windows applications use ASPI to
+communicate with SCSI devices (for example, backup software for SCSI
+tape devices or image scanning software for SCSI scanners), such
+applications could not be used under OS/2 2.x so far.
+
+:p.The included virtual ASPI driver (VASPI) for OS/2 2.x implements an
+ASPI interface for DOS and Windows applications running in DOS and
+WIN-OS/2 sessions under OS/2 2.x. Both the ASPI definition for DOS and
+the ASPI definition for Windows are implemented. In addition the
+driver contains an ASPI interface for OS/2 applications, since they
+can otherwise not directly access the OS/2 ASPI and would thus need
+their own device drivers for this purpose.
+
+:h2 res=2002.Installation
+:p.The virtual ASPI driver consists of four drivers modules:
+:ol.
+:li.the physical VASPI driver which connects to the OS/2 ASPI driver
+(which is installed with BASEDEV=OS2ASPI.DMD), this module is named
+VASPIDD.SYS,
+:li.the virtual VASPI driver which implements the ASPI definition for
+DOS sessions, named VASPI.SYS,
+:li.the stub device driver for specific DOS sessions (booted from
+a DOS floppy or image file under OS/2), VASPISTB.SYS and
+:li.the Windows DLL which implements the ASPI definition for Windows,
+named WINASPI.DLL.
+:eol.
+:p.For automatic installation, a device driver profile is included.
+Use the "Device Driver Install" object in the "System Setup" folder to
+install the VASPI driver. This procedure also takes care to add the
+reference to the OS/2 ASPI driver (OS2ASPI.DMD) to your CONFIG.SYS, if
+necessary. However, this installation method assumes that the base
+device driver for your SCSI host adaptor is already installed (see
+below for more information). Please also read the text below on
+trouble shooting. After installation is completed, you have to reboot
+your system for the changes to take effect.
+
+:p.For manual installation, the two core device drivers are loaded in
+CONFIG.SYS as follows (we suggest copying both drivers into the \OS2
+and \OS2\MDOS directories on your system boot drive):
+:xmp.
+  DEVICE=C&colon.\OS2\VASPIDD.SYS
+  DEVICE=C&colon.\OS2\MDOS\VASPI.SYS
+:exmp.
+:p.If you install the drivers on another drive or directory or your
+system boots from a different drive than C&colon., please correct the two
+lines as needed.
+
+:p.In addition to the VASPI drivers there must also two additional
+drivers always be loaded: the base device driver for the SCSI host
+adaptor (with extension .ADD) and the OS/2 ASPI driver (OS2ASPI.DMD).
+A number of host adaptors is directly supported by OS/2 and for many
+other host adaptors there are OS/2 drivers (.ADD) available from the
+manufacturer. For the Adaptec AHA-1542 host adaptor, which is directly
+supported by OS/2, the following drivers are to be loaded in
+CONFIG.SYS, for example:
+:xmp.
+  BASEDEV=AHA154X.ADD /V
+  BASEDEV=OS2ASPI.DMD
+:exmp.
+:p.For other host adaptors AHA154X.ADD has to be replaced by the
+appropriate driver. More details about OS2ASPI.DMD, the ADD
+drivers included with OS/2 and their options are available in the OS/2
+(online) documentation under the topic BASEDEV.
+
+:p.The exact position of the two lines loading VASPIDD.SYS and
+VASPI.SYS in CONFIG.SYS is not significant, but we suggest putting
+them directly after the BASEDEV=OS2ASPI.DMD line.
+
+:p.The Windows DLL (WINASPI.DLL) must be copied into the WIN-OS/2 system
+directory, usually C&colon.\OS2\MDOS\WINOS2\SYSTEM, or, in the case of
+OS/2 for Windows, C&colon.\WINDOWS\SYSTEM.
+
+:p.The stub device driver VASPISTB.SYS should be copied to
+C&colon.\OS2\MDOS. It will only be needed if a real (original) DOS
+version is started under OS/2 from a DOS floppy or a floppy image and
+ASPI is needed. In this case, VASPISTB.SYS must be loaded in the
+CONFIG.SYS of that DOS session (and not in the OS/2 CONFIG.SYS).
+
+:p.With these steps, the installation is completed, but you have to
+restart (reboot) your system to make the changes active.
+
+:p.Please ensure that during boot of your system all SCSI peripherals are
+correctly connected to the compuer and are also turned on. The OS/2
+drivers for most SCSI host adaptore and the OS/2 ASPI device manager
+check at load time, if there are devices to manage at all. If that is
+not the case, these drivers perhaps don't even load.
+
+:p.Please check also, if the SCSI bus termination is installed correctly.
+A common error is that both internal and external devices are
+connected to the SCSI host adaptor but the termination on the host
+adaptor itself was not removed (the SCSI bus must be terminated only
+on both ends). In such cases some or all connected devices may not be
+detected and data transfer errors can occur. The termination on the
+host adaptor is usually configured with jumpers, DIP switches,
+removable resistor packs or even via software.
+
+:p.To determine if and which devices are recognized by the host adaptor
+(if that feature is not already provided by your host adaptors BIOS
+during the power on self test) you can add the /V option to your host
+adaptors BASEDEV driver in CONFIG.SYS. Most OS/2 ADD drivers recognize
+this option and respond by displaying version numbers, perhaps
+hardware revisions and most often a list of found SCSI devices.
+
+:p.If all drivers load correctly, you can finally use the included test
+programs (see below) to retrieve a list of available devices for ASPI
+applications. This list will often be shorter that the ADD drivers
+list, because some devices may already be in use by other device
+managers and are thus not available to the ASPI manager.
+
+:h2 res=2003.DOS Settings
+:p.After you have installed the driver(s) correctly and have restarted
+your system, you will find a new entry in the DOS settings of DOS
+program objects, ASPI_ENABLE. This parameter defines, if ASPI is
+available in the session started from this object. The default is OFF,
+i.e. the ASPI interface is NOT available. Please change this parameter
+for all those program objects which you use to start your (DOS and
+WIN-OS/2) ASPI applications to ON.
+
+:p.The default (OFF) can be changed globally to ON by adding the
+option /ON to the line DEVICE=C&colon.\OS2\MDOS\VASPI.SYS in your
+CONFIG.SYS. In this case all DOS and WIN-OS/2 sessions have ASPI
+available automatically, but you can still disable ASPI for each
+program object individually.
+
+:h2 res=2004.Programmer's API
+:p.If you want to develop own DOS or Windows applications for ASPI, you
+can use the documentation and sample code available from Adaptec. If
+you want to develop OS/2 ASPI applications but want to avoid writing
+your own device driver interfacing with OS/2's ASPI manager, you can
+use the API included in VASPIDD.SYS.
+
+:p.You can find sample DOS and OS/2 ASPI applications in the \SAMPLES
+directory in the distribution of this driver. It contains the source
+code for the DOS and OS/2 test programs for ASPI (as mentioned below)
+and a C header file with the ASPI definitions for DOS and OS/2 ASPI
+applications.
+
+:p.The DOS test program can be compiled with Microsoft C, version 6.00 or
+newer. For other compilers, changes are required because inline
+assembly language statements are used for access to the DOS ASPI
+interface. This sample program does of course also work under plain
+DOS with standard ASPI drivers.
+
+:p.The OS/2 test program can be compiled as 16-bit application with
+Microsoft C, version 6.00 or Watcom C/C++ 16, version 9.5 or higher.
+To generate a 32-bit version, IBM C Set++, Watcom C/C++ 32, version
+9.5 or higher or the GNU C compiler can be used. For other compilers
+only minimal changes should be required, since the standard I/O
+control interface is used for access to VASPIDD.SYS.
+
+:p.This API for OS/2 ASPI applications knows a "posting" and a "non-
+posting" mode, just like the DOS and Windows versions (see Adaptec
+ASPI documentation for an explanation what posting means). However,
+because of the proteced architecture of OS/2, postimg mode is only
+possible for device drivers interfacing directly with the OS/2 ASPI
+manager. SCSI requests via the API in VASPIDD.SYS are always processed
+in posting mode, but the post routine is contained in this driver and
+there is no way to define a post routine in the calling application.
+That means that a request via this API does only return to the calling
+application when it was completely processed, the application will be
+blocked until this is the case. However, this blocking only affects
+the calling thread. If the application has to do other work during
+this time, it must be multithreaded.
+
+:p.Posting for DOS and Windows ASPI applications works, it is simulated
+by the virtual ASPI driver, because existing DOS and Windows
+applications use that feature.
+
+:p.There can be more than one application or thread accessing the API at
+a time, the VASPIDD.SYS driver is reentrant.
+
+:h2 res=2005.Test Programs
+:p.In the distribution there are two test programs, ASPI.EXE (a DOS
+application) and ASPI2.EXE (an OS/2 application), that can be used for
+diagnostic purposes. They are sample programs too (see above) and
+their source code is included.
+
+:p.Both programs, DOS and OS/2 version, use ASPI to list all SCSI host
+adaptors in the system and all SCSI peripheral devices connected to
+them, as long as they are not yet in use by other device managers (as
+it is the case with hard disks and CD-ROM drives). For all devices
+found the device type, vendor name and device name are listed.
+
+:h2 res=2006.Compatibility
+:p.The following DOS and Windows applications were testes successfully
+for compatibility:
+:ol.
+:li.SCSI tape backup software (with a Tandberg TDC-4100 streamer)
+:ul compact.
+:li.NovaStore NovaBack, version 3.57
+:li.CorelSCSI Tape Backup for DOS, version 1.22
+:li.CorelSCSI Tape Backup for Windows, version 1.14
+:li.Cheyenne ARCserve/Solo for DOS, version 2.11
+:li.GNU tar (GTAK 1.00)
+:li.GNU tar (ASPI-TAR)
+:eul.
+:li.SCSI image scanning software
+:ul compact.
+:li.HP DeskScan for Windows, versions 1.51 and 2.0
+:li.Calera WordScan+ for Windows (OCR software with scanner interface)
+:li.Caere OmniPage 2.10 for Windows (OCR software with scanner interface)
+:li.ImpOS/2 1.10 (image processing software with scanner interface)
+.br
+This OS/2 software cann access a DOS HP scanner device driver via a
+auxiliary program in a DOS session.
+:eul.
+:lp.(These applications were tested with a HP ScanJet IIcx and the
+included ASPI compatible DOS device driver SJIIX.SYS.)
+:ul compact.
+:li.HighScan for Windows, version 3.1, scanner: Siemens ST-400
+:li.Agfa PC View Color, version 1.02, scanner: Agfa Arcus Plus
+:li.Agfa FotoLook, version 1.26E, scanner: Agfa Arcus Plus
+:li.egsSoft Keyfile ScanServer, Scanner: Fujitsu M3096G
+:li.Umax Magic Scan for Windows, Scanner: Umax Power Look
+:li.PhotoShop 2.5.5 for Windows, Scanner: Microtek IISPX
+:eul.
+:lp.The HP DeskScan Agfa FotoLook and Umax Magic Scan applications also
+provide a TWAIN interface for Windows applications and let thus other
+Windows applications access the scanner if they support TWAIN, for
+example, Adobe PhotoStyler, Picture Publisher or Corel PhotoPain (part
+of Corel Draw 4.0 for Windows).
+:li.Other SCSI-Software
+:ul compact.
+:li.DataStore for Windows, Reflection Systems MOD drive 7030e
+:eul.
+:eol.
+:p.If you use other software with this VASPI driver which is not listed
+here, please send us a short notice to allow us adding it to this
+compatibility list.
+
+:h2 res=2007.Known Problems
+:ul.
+:li.If the ASPI interface is turned off for a DOS session (via the DOS
+settings), some ASPI compatible software may still detect the
+availability of an ASPI interface. However, all further ASPI
+requests will fail in any case.
+
+:li.If you run Windows ASPI applications in fullscreen WIN-OS/2
+sessions, it is normal if during processing of SCSI requests which
+take rather long to complete (tape rewinding, for example) the mouse
+pointer cannot be moved. This is caused by the fact that the session
+is blocked in the ASPI driver during this time.
+
+:li.The Centrol Point backup programs in the DOS (8.0, 9.0) and Windows
+(2.0) versions of the PC-TOOLS packages do not work reliably with
+this VASPI driver. While these programs can access SCSI tape
+devices, they may crash at random occasions, causing the affected
+DOS or WIN-OS/2 session to be terminated.
+:eul.
+
+:h2 res=2008.Test/Problem Reports
+:p.If you should have problems using an ASPI compatible DOS or Windows
+software with this VASPI driver, please send a report with the
+following items included:
+:ul compact.
+:li.version and serial number of the VASPI driver
+:li.exact type, name, version and vendor of the affected software
+:li.type and manufacturer of the SCSI peripheral device
+:li.type and manufacturer of the SCSI host adaptor
+:li.source, name and date/size of the host adaptor driver (.ADD)
+:li.source, name and date/size of the OS/2 ASPI manager (OS2ASPI.DMD)
+:li.operating system version (if not OS/2 2.1)
+:li.computer bus architecture (ISA, EISA, MCA, PCI)
+:eul.
+:p.and your address, phone and fax number.

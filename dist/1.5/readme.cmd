@@ -1,0 +1,1 @@
+@view vaspi.inf

@@ -1,0 +1,57 @@
+head	1.1;
+access;
+symbols;
+locks
+	rommel:1.1; strict;
+comment	@# @;
+
+
+1.1
+date	94.04.21.11.10.07;	author rommel;	state Exp;
+branches;
+next	;
+
+
+desc
+@Virtual ASPI driver for OS/2 2.x
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@.* $Id$
+.* $Revision$
+
+:userdoc.
+:title.Virtual ASPI driver for OS/2 2.x
+
+:h1 res=000.Copyright
+
+:xmp.
+
+    Virtual ASPI driver for OS/2 2.x
+    (C) 1994 ARS Computer und Consulting GmbH
+
+
+    ARS Computer und Consulting GmbH
+
+    Frankfurter Ring 193a
+    D-80807 Muenchen
+
+    Germany
+
+
+    Telephone:    +49 89 / 3 23 66 30-0
+    Fax:          +49 89 / 3 24 45 24
+    CompuServe:   100265,2651
+
+:exmp.
+
+.im german.txt
+.im english.txt
+
+:euserdoc.
+@

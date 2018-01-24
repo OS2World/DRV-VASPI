@@ -1,0 +1,138 @@
+
+ VASPI
+
+ Start         Length     Name                   Class
+ 0001:00000000 00000009CH CODE32                 CODE 32-bit
+               at offset 00000000 00050H bytes from main.obj (main.c)
+               at offset 00000050 00020H bytes from d:\ibmcpp\lib\dde4nbs.lib (E:\build\RT\SRC\MEMCPY.C)
+               at offset 00000070 0002CH bytes from d:\ibmcpp\lib\dde4nbs.lib (E:\build\RT\SRC\MEMSET.C)
+
+ 0002:00000000 000000000H _TEXT                  CODE 32-bit
+ 0002:00000000 0000000F0H CINIT_TEXT             CODE 32-bit
+               at offset 00000000 000F0H bytes from main.obj (main.c)
+
+ 0003:00000000 000000950H CSWAP_TEXT             CODE 32-bit
+               at offset 00000000 00360H bytes from main.obj (main.c)
+               at offset 00000360 005F0H bytes from aspi.obj (aspi.c)
+
+ 0004:00000000 000000000H CINIT_DATA             DATA 32-bit
+ 0004:00000000 00000011EH CSWAP_DATA             DATA 32-bit
+               at offset 00000000 00010H bytes from main.obj (main.c)
+               at offset 00000010 0010EH bytes from stubdata.obj (stubdata.asm)
+
+ 0005:00000000 000000000H MVDMINSTDATA           DATA 32-bit
+ 0005:00000000 0000000D0H SWAPINSTDATA           DATA 32-bit
+               at offset 00000000 00030H bytes from main.obj (main.c)
+               at offset 00000030 000A0H bytes from aspi.obj (aspi.c)
+
+ 0006:00000000 0000000E0H DATA32                 DATA 32-bit
+               at offset 00000000 00080H bytes from main.obj (main.c)
+               at offset 00000080 00060H bytes from aspi.obj (aspi.c)
+
+ 0006:000000E0 000000000H _DATA                  DATA 32-bit
+ 0006:000000E0 000000000H CONST32                CONST 32-bit
+ 0006:000000E0 000000000H CONST                  CONST 32-bit
+ 0006:000000E0 000000000H _BSS                   BSS 32-bit
+ 0006:000000E0 000000000H c_common               BSS 32-bit
+
+ Origin   Group
+ 0000:0   FLAT
+ 0006:0   DGROUP
+
+  Address         Publics by Name
+
+ 0005:0000001C       bASPIAvailable
+ 0005:00000020       bASPIInstalled
+ 0005:00000018       bDemoVersion
+ 0003:00000126       CREATE
+ 0003:00000404       DequeueSRB
+ 0003:00000360       EnqueueSRB
+ 0003:000000F0       EXPIREDEMO
+ 0003:00000484       GetSRB
+ 0005:00000014       hASPI
+ 0005:0000000C       hBPHook
+ 0005:00000008       hRetHook
+ 0005:00000004       hTimerHook
+ 0002:00000000       INIT
+ 0001:00000000       INITINT
+ 0003:00000000       INSTALLSTUB
+ 0001:00000050       memcpy
+ 0001:00000070       memset
+ 0003:000004D4       NativeASPI
+ 0005:00000000       owner_VDM
+ 0005:00000024       pBuffer
+ 0003:00000920       POSTRETURN
+ 0003:000008B0       POSTTIMER
+ 0003:00000316       TERMINATE
+ 0000:00000000  Imp  VDHALLOCDOSMEM       (MVDM.29)
+ 0000:00000000  Imp  VDHALLOCHOOK         (MVDM.86)
+ 0000:00000000  Imp  VDHALLOCPAGES        (MVDM.41)
+ 0000:00000000  Imp  VDHARMBPHOOK         (MVDM.18)
+ 0000:00000000  Imp  VDHARMRETURNHOOK     (MVDM.20)
+ 0000:00000000  Imp  VDHARMTIMERHOOK      (MVDM.49)
+ 0000:00000000  Imp  VDHCLOSE             (MVDM.52)
+ 0000:00000000  Imp  VDHDEVIOCTL          (MVDM.67)
+ 0000:00000000  Imp  VDHFREEPAGES         (MVDM.43)
+ 0000:00000000  Imp  VDHINSTALLINTHOOK    (MVDM.17)
+ 0000:00000000  Imp  VDHINSTALLUSERHOOK   (MVDM.3)
+ 0000:00000000  Imp  VDHOPEN              (MVDM.51)
+ 0000:00000000  Imp  VDHPOPINT            (MVDM.56)
+ 0000:00000000  Imp  VDHPOPREGS           (MVDM.58)
+ 0000:00000000  Imp  VDHPUSHINT           (MVDM.55)
+ 0000:00000000  Imp  VDHPUSHREGS          (MVDM.57)
+ 0000:00000000  Imp  VDHQUERYPROPERTY     (MVDM.104)
+ 0000:00000000  Imp  VDHREGISTERPROPERTY  (MVDM.103)
+ 0000:00000000  Imp  VDHSETDOSDEVICE      (MVDM.1)
+ 0003:00000534       VIRTUALASPI
+ 0005:00000010       vpBP
+ 0004:00000010       _StubStart
+
+  Address         Publics by Value
+
+ 0000:00000000  Imp  VDHINSTALLUSERHOOK   (MVDM.3)
+ 0000:00000000  Imp  VDHFREEPAGES         (MVDM.43)
+ 0000:00000000  Imp  VDHDEVIOCTL          (MVDM.67)
+ 0000:00000000  Imp  VDHPUSHREGS          (MVDM.57)
+ 0000:00000000  Imp  VDHARMBPHOOK         (MVDM.18)
+ 0000:00000000  Imp  VDHQUERYPROPERTY     (MVDM.104)
+ 0000:00000000  Imp  VDHREGISTERPROPERTY  (MVDM.103)
+ 0000:00000000  Imp  VDHCLOSE             (MVDM.52)
+ 0000:00000000  Imp  VDHALLOCHOOK         (MVDM.86)
+ 0000:00000000  Imp  VDHALLOCPAGES        (MVDM.41)
+ 0000:00000000  Imp  VDHPOPINT            (MVDM.56)
+ 0000:00000000  Imp  VDHPOPREGS           (MVDM.58)
+ 0000:00000000  Imp  VDHALLOCDOSMEM       (MVDM.29)
+ 0000:00000000  Imp  VDHPUSHINT           (MVDM.55)
+ 0000:00000000  Imp  VDHARMRETURNHOOK     (MVDM.20)
+ 0000:00000000  Imp  VDHOPEN              (MVDM.51)
+ 0000:00000000  Imp  VDHSETDOSDEVICE      (MVDM.1)
+ 0000:00000000  Imp  VDHINSTALLINTHOOK    (MVDM.17)
+ 0000:00000000  Imp  VDHARMTIMERHOOK      (MVDM.49)
+ 0001:00000000       INITINT
+ 0001:00000050       memcpy
+ 0001:00000070       memset
+ 0002:00000000       INIT
+ 0003:00000000       INSTALLSTUB
+ 0003:000000F0       EXPIREDEMO
+ 0003:00000126       CREATE
+ 0003:00000316       TERMINATE
+ 0003:00000360       EnqueueSRB
+ 0003:00000404       DequeueSRB
+ 0003:00000484       GetSRB
+ 0003:000004D4       NativeASPI
+ 0003:00000534       VIRTUALASPI
+ 0003:000008B0       POSTTIMER
+ 0003:00000920       POSTRETURN
+ 0004:00000010       _StubStart
+ 0005:00000000       owner_VDM
+ 0005:00000004       hTimerHook
+ 0005:00000008       hRetHook
+ 0005:0000000C       hBPHook
+ 0005:00000010       vpBP
+ 0005:00000014       hASPI
+ 0005:00000018       bDemoVersion
+ 0005:0000001C       bASPIAvailable
+ 0005:00000020       bASPIInstalled
+ 0005:00000024       pBuffer
+
+Program entry point at 0002:00000000

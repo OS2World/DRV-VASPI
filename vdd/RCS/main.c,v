@@ -1,0 +1,690 @@
+head	1.13;
+access;
+symbols
+	release3:1.10
+	release2:1.8
+	release1:1.7;
+locks; strict;
+comment	@ * @;
+
+
+1.13
+date	94.09.23.19.44.31;	author rommel;	state Exp;
+branches;
+next	1.12;
+
+1.12
+date	94.09.14.12.15.14;	author rommel;	state Exp;
+branches;
+next	1.11;
+
+1.11
+date	94.04.20.11.53.48;	author rommel;	state Exp;
+branches;
+next	1.10;
+
+1.10
+date	94.03.29.16.09.02;	author rommel;	state Exp;
+branches;
+next	1.9;
+
+1.9
+date	94.03.09.17.29.54;	author rommel;	state Exp;
+branches;
+next	1.8;
+
+1.8
+date	94.03.01.09.13.22;	author rommel;	state Exp;
+branches;
+next	1.7;
+
+1.7
+date	94.02.04.17.44.01;	author rommel;	state release1;
+branches;
+next	1.6;
+
+1.6
+date	94.02.02.13.22.39;	author rommel;	state Exp;
+branches;
+next	1.5;
+
+1.5
+date	94.01.27.12.59.36;	author rommel;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	94.01.09.20.19.53;	author rommel;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	93.12.22.18.21.15;	author rommel;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	93.12.22.13.06.08;	author rommel;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	93.12.20.16.16.41;	author rommel;	state Exp;
+branches;
+next	;
+
+
+desc
+@virtual ASPI driver for OS/2 2.x
+@
+
+
+1.13
+log
+@fixed DOS box exit bug when no ASPI installed
+@
+text
+@/* main.c
+ *
+ * virtual ASPI driver for OS/2 2.x
+ * (C) 1994 ARS Computer und Consulting GmbH
+ *
+ * Author:  Kai Uwe Rommel <rommel@@jonas>
+ * Created: Mon Dec 20 1993
+ */
+ 
+static char *rcsid =
+"$Id: main.c,v 1.12 1994/09/14 12:15:14 rommel Exp rommel $";
+static char *rcsrev = "$Revision: 1.12 $";
+
+/*
+ * $Log: main.c,v $
+ * Revision 1.12  1994/09/14 12:15:14  rommel
+ * new init method, allows real stub for specific DOS sessions
+ *
+ * Revision 1.11  1994/04/20 11:53:48  rommel
+ * fourth release
+ *
+ * Revision 1.10  1994/03/29 16:09:02  rommel
+ * third release
+ *
+ * Revision 1.9  1994/03/09 17:29:54  rommel
+ * new version using VDHPushFarCall
+ *
+ * Revision 1.8  1994/03/01 09:13:22  rommel
+ * second release, /ON and /OFF options
+ *
+ * Revision 1.7  1994/02/04 17:44:01  rommel
+ * first release
+ *
+ * Revision 1.6  1994/02/02 13:22:39  rommel
+ * beta release
+ *
+ * Revision 1.5  1994/01/27 12:59:36  rommel
+ * first test release
+ *
+ * Revision 1.4  1994/01/09 20:19:53  rommel
+ * first somewhat working version
+ *
+ * Revision 1.3  1993/12/22 18:21:15  rommel
+ * Added opening of physical device.
+ *
+ * Revision 1.2  1993/12/22  13:06:08  rommel
+ * Restructured, stub DD added.
+ *
+ * Revision 1.1  1993/12/20  16:16:41  rommel
+ * Initial revision
+ * */
+
+#include <mvdm.h>
+
+#include <ctype.h>
+
+#include "vaspi.h"
+#include "stub.h"
+
+#pragma data_seg(SWAPINSTDATA)
+
+HVDM owner_VDM = 0;
+HHOOK hTimerHook;                           /* post timer hook handle */
+HHOOK hRetHook;                             /* post return hook handle */
+HHOOK hBPHook;		                    /* entry hook handle */
+VPVOID vpBP;				    /* breakpoint address for ARPL */
+
+HFILE hASPI;
+BOOL bDemoVersion;
+BOOL bASPIAvailable, bASPIInstalled;
+
+#define BUFFERSIZE 16 /* 64k */
+PCHAR pBuffer;
+
+static ULONG nAction;
+
+#pragma data_seg(CSWAP_DATA)
+
+static char *szPDDName  = PDDNAME;
+static char *szProperty = PROPERTYNAME;
+static BOOL bFirst = TRUE;
+static HHOOK hDemoHook;                     /* demo expire timer hook handle */
+
+#pragma alloc_text(CSWAP_TEXT,InstallStub,ExpireDemo,Create,Terminate)
+
+/* stub DOS device driver installation */
+
+BOOL HOOKENTRY InitInt(PCRF pcrf)
+{
+  /* vdhInt3(); */
+
+  if (AX(pcrf) == MPLEX_ASPI)
+  {
+    AX(pcrf) = bASPIAvailable;
+    BX(pcrf) = OFFSETOF16(vpBP);
+    ES(pcrf) = SEGMENTOF16(vpBP);
+  }
+
+  return TRUE;
+}
+
+BOOL PRIVENTRY InstallStub(HVDM hVDM)
+{
+  PBYTE dosDDstart;		/* where the Dos Device Driver will go  */
+
+  /* vdhInt3(); */
+
+  /* install INT hook for initialization */
+
+  if ((VDHInstallIntHook(hVDM, INIT_INT, (PUSERHOOK) InitInt, 0)) == 0)
+    return FALSE;
+
+  /* allocate the memory for the stub driver and copy it there */
+
+  if (!(dosDDstart = VDHAllocDosMem(StubLength)))
+    return FALSE;
+
+  memcpy(dosDDstart, _StubStart, StubLength);
+
+  if ((hBPHook = VDHAllocHook(VDH_BP_HOOK, (PFNARM) VirtualASPI, 0)) == NULL)
+    return FALSE;
+
+  vpBP = VDHArmBPHook(hBPHook); /* get ARPL address  */
+
+  if (!VDHSetDosDevice((VPDOSDDTYPE) VPFROMP(dosDDstart)))
+    return FALSE;
+
+  return TRUE;
+}
+
+/* demo version expiration timer */
+
+BOOL HOOKENTRY ExpireDemo(PVOID pHookData, PCRF pcrf)
+{
+  bASPIAvailable = FALSE;
+
+  VDHFreePages(pBuffer);
+  VDHClose(hASPI);
+
+  return TRUE;
+}
+
+/* VDM creation and termination hook entries */
+
+BOOL HOOKENTRY Create(HVDM hVDM)
+{
+  owner_VDM = hVDM;
+  pBuffer = 0;
+
+  /* vdhInt3(); */
+
+  bASPIAvailable = VDHQueryProperty(szProperty);
+  bASPIInstalled = FALSE;
+
+  if (bASPIAvailable)
+  {
+    if (VDHOpen(szPDDName, &hASPI, &nAction, 0L, 0, 
+		VDHOPEN_FILE_OPEN,
+		VDHOPEN_ACCESS_READWRITE | 
+		VDHOPEN_SHARE_DENYNONE |
+		VDHOPEN_FLAGS_FAIL_ON_ERROR, 0L) == 0)
+      return TRUE;
+
+    bDemoVersion = VDHDevIOCtl(hASPI, ASPI_DEMO, 0, 0, 0, 0, 0, 0, 0);
+
+    if (bDemoVersion)
+      if (!bFirst)
+	bASPIAvailable = FALSE;
+      else
+      {
+	bFirst = FALSE;
+
+	if ((hDemoHook = VDHAllocHook(VDH_TIMER_HOOK, (PFNARM) ExpireDemo, 0)) == NULL)
+	  return FALSE;
+
+	VDHArmTimerHook(hDemoHook, EXPIRE * 60 * 1000, owner_VDM);
+      }
+
+    if (bASPIAvailable)
+    {
+      if ((hTimerHook = VDHAllocHook(VDH_TIMER_HOOK, (PFNARM) PostTimer, 0)) == NULL)
+	return FALSE;
+
+      if ((hRetHook = VDHAllocHook(VDH_RETURN_HOOK, (PFNARM) PostReturn, 0)) == NULL)
+	return FALSE;
+
+      if ((pBuffer = VDHAllocPages(0, BUFFERSIZE, VDHAP_SYSTEM)) == 0)
+	return FALSE;
+
+      bASPIInstalled = TRUE;
+    }
+    else
+      VDHClose(hASPI);
+  }
+
+  if (!InstallStub(hVDM))
+    return FALSE;
+
+  return TRUE;
+}
+
+BOOL HOOKENTRY Terminate(HVDM hVDM)
+{
+  /* vdhInt3(); */
+
+  if (bASPIInstalled)
+  {
+    VDHFreePages(pBuffer);
+    VDHClose(hASPI);
+  }
+
+  owner_VDM = 0;
+
+  return TRUE;
+}
+
+/* init entry point called by system at load time */
+
+#pragma alloc_text(CINIT_TEXT,Init)
+#pragma entry(Init)
+
+BOOL EXPENTRY Init(PSZ szArgs)
+{
+  BOOL bDefault = FALSE;
+
+  /* vdhInt3(); */
+
+  if (szArgs != 0 && szArgs[0] == '/' &&
+      (szArgs[1] == 'O' || szArgs[1] == 'o') &&
+      (szArgs[2] == 'N' || szArgs[2] == 'n'))
+    bDefault = TRUE;
+
+  /* Register a VDM creation handler entry point */
+
+  if ((VDHInstallUserHook((ULONG) VDM_CREATE, (PUSERHOOK) Create)) == 0)
+    return FALSE;
+
+  /* Register ion handler entry point*/
+
+  if ((VDHInstallUserHook((ULONG) VDM_TERMINATE, (PUSERHOOK) Terminate)) == 0)
+    return FALSE;
+
+  /* Register a DOS session property */
+  if ((VDHRegisterProperty(szProperty, 0, 0, VDMP_BOOL, VDMP_ORD_OTHER, 
+			   VDMP_CREATE, (PVOID) bDefault, 0, 0)) == 0)
+    return FALSE;
+
+  return TRUE;
+}
+
+/* end of main.c */
+@
+
+
+1.12
+log
+@new init method, allows real stub for specific DOS sessions
+@
+text
+@d11 2
+a12 2
+"$Id: main.c,v 1.11 1994/04/20 11:53:48 rommel Exp rommel $";
+static char *rcsrev = "$Revision: 1.11 $";
+a13 9
+/* $Log: main.c,v $
+/* Revision 1.11  1994/04/20 11:53:48  rommel
+/* fourth release
+/*
+/* Revision 1.10  1994/03/29 16:09:02  rommel
+/* third release
+/*
+/* Revision 1.9  1994/03/09 17:29:54  rommel
+/* new version using VDHPushFarCall
+d15 13
+d70 1
+a70 1
+BOOL bASPIAvailable;
+d108 1
+a108 1
+  /* install INT 2F hook for initialization */
+d150 2
+d153 1
+d189 2
+d204 3
+a206 1
+  if (bASPIAvailable)
+@
+
+
+1.11
+log
+@fourth release
+@
+text
+@d11 2
+a12 2
+"$Id: main.c,v 1.10 1994/03/29 16:09:02 rommel Exp rommel $";
+static char *rcsrev = "$Revision: 1.10 $";
+d15 3
+a58 1
+HHOOK hBPHook;		                    /* entry hook handle */
+d61 2
+a62 1
+VPDOSDDTYPE DosDDHeader;                    /* V86FAR address of dos driver  */
+d84 15
+a98 1
+BOOL PRIVENTRY InstallStub (VOID)
+d101 7
+a107 1
+  VPVOID vpBP;			/* breakpoint address for ARPL          */
+a120 5
+  *(PDWORD)(dosDDstart + Vector) = (DWORD) vpBP; /* patch device driver*/
+  *(PWORD)(dosDDstart + Avail) = (WORD) bASPIAvailable;
+
+  DosDDHeader = (VPDOSDDTYPE) VPFROMP(dosDDstart);
+
+a121 2
+  {
+    *(PDWORD) (dosDDstart + DevName) = 0; /* kill the device name */
+a122 1
+  }
+d187 1
+a187 1
+  if (!InstallStub())
+@
+
+
+1.10
+log
+@third release
+@
+text
+@d11 2
+a12 2
+"$Id: main.c,v 1.9 1994/03/09 17:29:54 rommel Exp rommel $";
+static char *rcsrev = "$Revision: 1.9 $";
+d15 3
+d60 1
+d62 2
+a63 2
+
+static ULONG nAction;
+d68 2
+d74 2
+d77 1
+a77 1
+#pragma alloc_text(CSWAP_TEXT,InstallStub,Create,Terminate)
+d98 2
+a99 1
+  *(PDWORD)(dosDDstart + Patch) = (DWORD) vpBP; /* patch device driver*/
+d109 8
+a116 2
+  if ((hTimerHook = VDHAllocHook(VDH_TIMER_HOOK, (PFNARM) PostTimer, 0)) == NULL)
+    return FALSE;
+d118 2
+a119 2
+  if ((hRetHook = VDHAllocHook(VDH_RETURN_HOOK, (PFNARM) PostReturn, 0)) == NULL)
+    return FALSE;
+d129 3
+d133 1
+a133 1
+  if (VDHQueryProperty(szProperty))
+d142 1
+a142 2
+    if (!InstallStub())
+      return FALSE;
+d144 26
+a169 2
+    if ((pBuffer = VDHAllocPages(0, BUFFERSIZE, VDHAP_SYSTEM)) == 0)
+      return FALSE;
+d172 3
+d180 1
+a180 1
+  if (VDHQueryProperty(szProperty))
+@
+
+
+1.9
+log
+@new version using VDHPushFarCall
+@
+text
+@d11 2
+a12 2
+"$Id: main.c,v 1.8 1994/03/01 09:13:22 rommel Exp rommel $";
+static char *rcsrev = "$Revision: 1.8 $";
+d15 3
+a116 3
+    if (!InstallStub())
+      return FALSE;
+
+d122 3
+@
+
+
+1.8
+log
+@second release, /ON and /OFF options
+@
+text
+@d11 2
+a12 2
+"$Id: main.c,v 1.7 1994/02/04 17:44:01 rommel release1 rommel $";
+static char *rcsrev = "$Revision: 1.7 $";
+d15 3
+d50 3
+a73 1
+  HHOOK hBPHook;		/* hook handle                          */
+a81 2
+  /* set ARPL to VASPIDosLink */
+
+d96 6
+@
+
+
+1.7
+log
+@first release
+@
+text
+@d11 2
+a12 2
+"$Id: main.c,v 1.6 1994/02/02 13:22:39 rommel Exp rommel $";
+static char *rcsrev = "$Revision: 1.6 $";
+d15 3
+d38 3
+d140 1
+a140 1
+BOOL EXPENTRY Init(PSZ psz)
+d142 2
+d146 5
+d162 2
+a163 2
+  if ((VDHRegisterProperty(szProperty, 0, 0, VDMP_BOOL, 
+			   VDMP_ORD_OTHER, VDMP_CREATE, 0, 0, 0)) == 0)
+@
+
+
+1.6
+log
+@beta release
+@
+text
+@d11 2
+a12 2
+"$Id: main.c,v 1.5 1994/01/27 12:59:36 rommel Exp rommel $";
+static char *rcsrev = "$Revision: 1.5 $";
+d15 3
+d44 2
+d50 4
+a94 2
+  static ULONG nAction;
+
+d97 1
+a97 1
+  if (VDHQueryProperty(PROPERTYNAME))
+d102 1
+a102 1
+    if (VDHOpen(PDDNAME, &hASPI, &nAction, 0L, 0, 
+d118 1
+a118 1
+  if (VDHQueryProperty(PROPERTYNAME))
+d132 1
+a132 1
+#pragma entry (Init)
+d149 1
+a149 1
+  if ((VDHRegisterProperty(PROPERTYNAME, 0, 0, VDMP_BOOL, 
+@
+
+
+1.5
+log
+@first test release
+@
+text
+@d4 1
+a4 1
+ * (C) 1993 ARS Computer und Consulting GmbH
+d11 2
+a12 2
+"$Id: main.c,v 1.4 1994/01/09 20:19:53 rommel Exp rommel $";
+static char *rcsrev = "$Revision: 1.4 $";
+d15 3
+d41 3
+d88 6
+a93 2
+  if (!InstallStub())
+    return FALSE;
+d95 6
+a100 6
+  if (VDHOpen(PDDNAME, &hASPI, &nAction, 0L, 0, 
+	      VDHOPEN_FILE_OPEN,
+	      VDHOPEN_ACCESS_READWRITE | 
+	      VDHOPEN_SHARE_DENYNONE |
+	      VDHOPEN_FLAGS_FAIL_ON_ERROR, 0L) == 0)
+    return FALSE;
+d102 3
+a104 1
+  owner_VDM = hVDM;
+d111 6
+a118 2
+  VDHClose(hASPI);
+
+d131 5
+d141 3
+a143 3
+  /* Register a VDM creation handler entry point */
+
+  if ((VDHInstallUserHook((ULONG) VDM_CREATE, (PUSERHOOK) Create)) == 0)
+@
+
+
+1.4
+log
+@first somewhat working version
+@
+text
+@d11 2
+a12 2
+"$Id: main.c,v 1.3 1993/12/22 18:21:15 rommel Exp rommel $";
+static char *rcsrev = "$Revision: 1.3 $";
+d15 3
+d113 1
+a113 1
+  vdhInt3();
+@
+
+
+1.3
+log
+@Added opening of physical device.
+@
+text
+@d11 2
+a12 2
+"$Id: main.c,v 1.2 1993/12/22 13:06:08 rommel Exp rommel $";
+static char *rcsrev = "$Revision: 1.2 $";
+d15 3
+d64 1
+a64 1
+  if (!VDHSetDosDevice ((VPDOSDDTYPE) VPFROMP(dosDDstart)))
+d82 1
+a82 1
+  if (VDHOpen("SCSIMGR$", &hASPI, &nAction, 0L, 0, 
+@
+
+
+1.2
+log
+@Restructured, stub DD added.
+@
+text
+@d11 2
+a12 2
+"$Id: main.c,v 1.1 1993/12/20 16:16:41 rommel Exp rommel $";
+static char *rcsrev = "$Revision: 1.1 $";
+d15 3
+d30 1
+d52 1
+a52 1
+  if ((hBPHook = VDHAllocHook(VDH_BP_HOOK, (PFNARM) VASPI, 0)) == NULL)
+d74 2
+d79 7
+d88 1
+a88 1
+  return CTRUE;
+d95 3
+a97 1
+  return CTRUE;
+d112 1
+a112 1
+    return 0;
+d117 1
+a117 1
+    return 0;
+d119 1
+a119 1
+  return CTRUE;
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d11 2
+a12 2
+"$Id$";
+static char *rcsrev = "$Revision$";
+d14 4
+a17 1
+/* $Log$ */
+d21 6
+d29 33
+a61 1
+#pragma alloc_text(CSWAP_TEXT,Create,Terminate)
+d63 4
+a66 1
+HVDM owner_VDM = 0;
+d70 3
+d81 22
+@

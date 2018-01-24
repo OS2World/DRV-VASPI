@@ -1,0 +1,443 @@
+head	1.5;
+access;
+symbols
+	release3:1.4;
+locks; strict;
+comment	@ * @;
+
+
+1.5
+date	94.05.26.10.55.52;	author rommel;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	94.03.29.16.06.24;	author rommel;	state Exp;
+branches
+	1.4.1.1;
+next	1.3;
+
+1.3
+date	94.03.03.16.51.37;	author rommel;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	94.03.02.15.42.59;	author rommel;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	94.03.02.14.54.16;	author rommel;	state Exp;
+branches;
+next	;
+
+1.4.1.1
+date	94.03.30.10.37.28;	author rommel;	state Exp;
+branches;
+next	;
+
+
+desc
+@virtual ASPI driver for OS/2 2.x
+@
+
+
+1.5
+log
+@fix for NetWare Requester conflict
+@
+text
+@/* winaspi.c
+ *
+ * virtual ASPI driver for OS/2 2.x
+ * (C) 1993 ARS Computer und Consulting GmbH
+ *
+ * Author:  Kai Uwe Rommel <rommel@@jonas>
+ * Created: Wed Mar 02 1994
+ */
+
+static char *rcsid =
+"$Id: winaspi.c,v 1.4 1994/03/29 16:06:24 rommel Exp rommel $";
+static char *rcsrev = "$Revision: 1.4 $";
+
+/*
+ * $Log: winaspi.c,v $
+ * Revision 1.4  1994/03/29 16:06:24  rommel
+ * third release
+ *
+ * Revision 1.3  1994/03/03 16:51:37  rommel
+ * first working version
+ *
+ * Revision 1.2  1994/03/02 15:42:59  rommel
+ * first (empty) prototype
+ *
+ * Revision 1.1  1994/03/02 14:54:16  rommel
+ * Initial revision
+ */
+
+#define MAXBUFFER   65536L
+#define MAXSRB      1024
+
+#define MPLEX       0x2F
+#define MPLEX_POST  0xC701
+#define MPLEX_ASPI  0xC702
+
+#include <windows.h>
+extern DWORD FAR PASCAL GlobalDosAlloc(DWORD);
+extern WORD FAR PASCAL GlobalDosFree(WORD);
+
+#include <memory.h>
+
+#include "../sdk/windows/winaspi.h"
+typedef SRB_ExecSCSICmd6 FAR *LPSRBIO;
+typedef VOID (FAR PASCAL *LPPOSTPROC)(LPSRB lpSRB);
+
+WORD wSegBuffer, wSegSRB;
+WORD wSelBuffer, wSelSRB;
+LPBYTE lpBuffer;
+LPSRBIO lpLowSRB;
+
+WORD FAR PASCAL SendASPICommand(LPSRB lpSRB)
+{
+  LPSRBIO lpSRBIO;
+  WORD nSRBSize;
+  LPBYTE lpData;
+  DWORD nDataSize;
+  LPPOSTPROC ASPIPostProc;
+  BOOL bPost;
+
+  lpSRBIO   = (LPSRBIO) lpSRB;
+
+  lpData    = lpSRBIO -> SRB_BufPointer;
+  nDataSize = lpSRBIO -> SRB_BufLen;
+
+  if (nDataSize > 65536L)
+    return SS_BUFFER_TO_BIG;
+
+  switch (lpSRBIO -> SRB_Cmd)
+  {
+  case SC_HA_INQUIRY:
+    nSRBSize = sizeof(SRB_HAInquiry);
+    break;
+  case SC_GET_DEV_TYPE:
+    nSRBSize = sizeof(SRB_GDEVBlock);
+    break;
+  case SC_EXEC_SCSI_CMD:
+    nSRBSize = sizeof(SRB_ExecSCSICmd6);
+    nSRBSize += lpSRBIO -> SRB_CDBLen - 6;
+    nSRBSize += lpSRBIO -> SRB_SenseLen - SENSE_LEN;
+    break;
+  case SC_ABORT_SRB:
+    nSRBSize = sizeof(SRB_Abort);
+    break;
+  case SC_RESET_DEV:
+    nSRBSize = sizeof(SRB_BusDeviceReset);
+    break;
+  }
+
+  _fmemcpy((LPBYTE) lpLowSRB, (LPBYTE) lpSRBIO, nSRBSize);
+  bPost = (lpSRBIO -> SRB_Flags & SRB_POSTING) != 0;
+  lpLowSRB -> SRB_Flags &= ~SRB_POSTING;
+  lpLowSRB -> SRB_BufPointer = (LPBYTE) MAKELONG(0, wSegBuffer);
+
+  if (nDataSize)
+    _fmemcpy(lpBuffer, lpData, (size_t) nDataSize);
+
+  _asm
+  {
+    mov bx,wSegSRB
+    mov ax,MPLEX_ASPI
+    int MPLEX
+  }
+
+  _fmemcpy((LPBYTE) lpSRBIO, (LPBYTE) lpLowSRB, nSRBSize);
+
+  if (nDataSize)
+    _fmemcpy(lpData, lpBuffer, (size_t) nDataSize);
+
+  if (bPost)
+  {
+    ASPIPostProc = lpSRBIO -> SRB_PostProc;
+    ASPIPostProc(lpSRB);
+  }
+
+  return lpSRBIO -> SRB_Status;
+}
+
+WORD FAR PASCAL GetASPISupportInfo(VOID)
+{
+  SRB_HAInquiry SRB;
+
+  _fmemset(&SRB, 0, sizeof(SRB)); /* that is a shortcut for INQUIRY ... */
+
+  if (SendASPICommand((LPSRB) &SRB) != SS_COMP || SRB.SRB_Status != SS_COMP)
+    return (SS_NO_ASPI << 8) | 0;
+
+  return (SS_COMP << 8) | SRB.HA_Count;
+}
+
+BOOL FAR PASCAL LibMain(HANDLE hInstance, WORD wDataSeg,
+                        WORD cbHeapSize, LPSTR lpszCmdLine)
+{
+  DWORD dwRes;
+
+  if ( (dwRes = GlobalDosAlloc(MAXBUFFER)) == 0 )
+    return FALSE;
+
+  wSegBuffer   = HIWORD(dwRes);
+  wSelBuffer   = LOWORD(dwRes);
+  lpBuffer     = (LPBYTE) MAKELONG(0, wSelBuffer);
+
+  if ( (dwRes = GlobalDosAlloc(MAXSRB)) == 0 )
+    return FALSE;
+
+  wSegSRB   = HIWORD(dwRes);
+  wSelSRB   = LOWORD(dwRes);
+  lpLowSRB  = (LPSRBIO) MAKELONG(0, wSelSRB);
+
+  return TRUE;
+}
+
+BOOL FAR PASCAL WEP(WORD nExitType)
+{
+  GlobalDosFree(wSelBuffer);
+  GlobalDosFree(wSelSRB);
+
+  return TRUE;
+}
+
+/* end of winaspi.c */
+@
+
+
+1.4
+log
+@third release
+@
+text
+@d11 2
+a12 2
+"$Id: winaspi.c,v 1.3 1994/03/03 16:51:37 rommel Exp rommel $";
+static char *rcsrev = "$Revision: 1.3 $";
+d14 5
+a18 1
+/* $Log: winaspi.c,v $
+d27 1
+a27 1
+ * */
+d31 4
+a34 1
+#define ASPIID      0xC700
+d100 2
+a101 2
+    mov ax,ASPIID
+    int 0x2F
+@
+
+
+1.4.1.1
+log
+@test version with timed post
+@
+text
+@d11 2
+a12 2
+"$Id: winaspi.c,v 1.4 1994/03/29 16:06:24 rommel Exp rommel $";
+static char *rcsrev = "$Revision: 1.4 $";
+a14 3
+/* Revision 1.4  1994/03/29 16:06:24  rommel
+/* third release
+/*
+a43 56
+#define MAXQUEUE 32
+#define NEXT(x)  ((x) == MAXQUEUE - 1 ? 0 : (x) + 1)
+LPSRBIO rpSRB[MAXQUEUE];
+int nHead = 0, nTail = 0;
+FARPROC lpTimerFunc;
+WORD nTimer;
+
+LPSRBIO GetSRB(void)
+{
+  return (nHead == nTail) ? NULL : rpSRB[nTail];
+}
+
+BOOL DequeueSRB(void)
+{
+  if (nHead == nTail)
+    return FALSE;
+
+  nTail = NEXT(nTail);
+
+  return TRUE;
+}
+
+int FAR PASCAL nwTimerFunc(HWND hWnd, WORD wMsg, int nEvent, DWORD dwTime)
+{
+  LPSRBIO lpSRB;
+  LPPOSTPROC ASPIPostProc;
+
+  KillTimer(NULL, nTimer);
+
+  while ((lpSRB = GetSRB()) != NULL)
+  {
+    ASPIPostProc = lpSRB -> SRB_PostProc;
+    ASPIPostProc((LPBYTE) lpSRB);
+    DequeueSRB();
+  }
+
+  return 0;
+}
+
+BOOL EnqueueSRB(LPSRBIO lpSRB)
+{
+  int nNew;
+
+  if ((nNew = NEXT(nHead)) == nTail)
+    return FALSE;
+
+  rpSRB[nHead] = lpSRB;
+
+  if (nHead == nTail) /* queue was empty until now */
+    nTimer = SetTimer(NULL, 0, 10, lpTimerFunc);
+
+  nHead = nNew;
+
+  return TRUE;
+}
+
+d50 1
+d103 4
+a106 1
+    EnqueueSRB(lpSRBIO);
+d128 1
+a128 4
+  if ((lpTimerFunc = MakeProcInstance(nwTimerFunc, hInstance)) == NULL)
+    return FALSE;
+
+  if ((dwRes = GlobalDosAlloc(MAXBUFFER)) == 0)
+d135 1
+a135 1
+  if ((dwRes = GlobalDosAlloc(MAXSRB)) == 0)
+a148 2
+
+  FreeProcInstance(lpTimerFunc);
+@
+
+
+1.3
+log
+@first working version
+@
+text
+@d11 2
+a12 2
+"$Id: winaspi.c,v 1.2 1994/03/02 15:42:59 rommel Exp rommel $";
+static char *rcsrev = "$Revision: 1.2 $";
+d15 3
+d27 1
+a27 1
+#define ASPIID      0xC7
+d41 2
+a42 1
+LPBYTE lpBuffer, lpLowSRB;
+d82 1
+d84 2
+a85 1
+  lpSRBIO -> SRB_Flags &= ~SRB_POSTING;
+a87 2
+  {
+    lpSRBIO -> SRB_BufPointer = (LPBYTE) MAKELONG(0, wSegBuffer);
+a88 3
+  }
+
+  _fmemcpy(lpLowSRB, lpSRB, nSRBSize);
+d93 1
+a93 1
+    mov ah,ASPIID
+d97 1
+a97 1
+  _fmemcpy(lpSRB, lpLowSRB, nSRBSize);
+a99 1
+  {
+a100 2
+    lpSRBIO -> SRB_BufPointer = lpData;
+  }
+d104 1
+a104 1
+    lpSRBIO -> SRB_Flags |= SRB_POSTING;
+d140 1
+a140 1
+  lpLowSRB  = (LPBYTE) MAKELONG(0, wSelSRB);
+@
+
+
+1.2
+log
+@first (empty) prototype
+@
+text
+@d11 2
+a12 2
+"$Id: winaspi.c,v 1.1 1994/03/02 14:54:16 rommel Exp rommel $";
+static char *rcsrev = "$Revision: 1.1 $";
+d15 3
+d22 3
+a24 2
+#define MAXBUFFER 65536L
+#define MAXSRB    1024
+d30 2
+d33 2
+d38 1
+a38 2
+LPBYTE lpBuffer;
+LPSRB lpLowSRB;
+d40 1
+a40 1
+WORD FAR PASCAL GetASPISupportInfo(VOID)
+d42 69
+a110 2
+  DebugBreak();
+  return (SS_NO_ASPI << 8) | 0;
+d113 1
+a113 1
+WORD FAR PASCAL SendASPICommand(LPSRB lpSRB)
+d115 8
+a122 2
+  DebugBreak();
+  return SS_INVALID_HA;
+d133 3
+a135 3
+  wSegBuffer = HIWORD(dwRes);
+  wSelBuffer = LOWORD(dwRes);
+  lpBuffer   = (LPBYTE) MAKELONG(0, wSelBuffer);
+d140 3
+a142 3
+  wSegSRB    = HIWORD(dwRes);
+  wSelSRB    = LOWORD(dwRes);
+  lpLowSRB   = (LPSRB) MAKELONG(0, wSelSRB);
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d11 2
+a12 2
+"$Id$";
+static char *rcsrev = "$Revision$";
+d14 7
+a20 1
+/* $Log$ */
+d23 3
+d28 5
+d35 2
+a36 1
+  return (SS_COMP << 8) | 1;
+d41 23
+d69 4
+a72 1
+  return SS_INVALID_HA;
+@

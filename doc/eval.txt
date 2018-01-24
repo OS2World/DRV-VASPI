@@ -1,0 +1,35 @@
+Virtual ASPI driver for OS/2 2.x
+(C) 1994 ARS Computer und Consulting GmbH
+
+
+This is an evaluation version. The restrictions compared to the full
+version are:
+
+- Only the first started DOS session will have ASPI available. No
+  further DOS session (even after the first one terminated) will have
+  ASPI available.
+
+- The ASPI in the first started DOS session will stop functioning
+  after 15 minutes.
+
+- To get access to ASPI in a DOS session again, you will have to
+  reboot the system.
+
+- Questions will ONLY be answered via CompuServe, FAX messages and
+  phone calls will not be handled.
+
+
+To get the full version:
+
+Only if you are in Europe, you can send an order (via FAX, for
+example) and will receive the full version via postal mail. The price
+in this case is DM 98.-- plus DM 8.-- shipping costs.
+
+In any case (worldwide) you can register your copy via CompuServe's
+ShareWare registration service (GO SWREG), the registration ID is
+2510, the title is "Virtual ASPI Driver 1.3 for OS/2". 
+
+In this case, you will receive the full version via CompuServe mail
+(and no shipping costs apply). The price is $59 and will be charged to
+your CompuServe bill. If you want to get it sent via postal mail
+instead (please specify), shipping costs are $10.

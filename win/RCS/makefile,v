@@ -1,0 +1,154 @@
+head	1.4;
+access;
+symbols
+	release3:1.4;
+locks; strict;
+comment	@# @;
+
+
+1.4
+date	94.03.09.15.52.32;	author rommel;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	94.03.03.16.51.48;	author rommel;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	94.03.02.15.43.17;	author rommel;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	94.03.02.14.54.16;	author rommel;	state Exp;
+branches;
+next	;
+
+
+desc
+@virtual ASPI driver for OS/2 2.x
+@
+
+
+1.4
+log
+@added test program
+@
+text
+@# Makefile
+
+# virtual ASPI driver for OS/2 2.x
+# (C) 1994 ARS Computer und Consulting GmbH
+
+# Author:  Kai Uwe Rommel <rommel@@jonas>
+# Created: Wed Mar 02 1994
+
+# $Id: makefile,v 1.3 1994/03/03 16:51:48 rommel Exp rommel $
+# $Revision: 1.3 $
+
+# $Log: makefile,v $
+# Revision 1.3  1994/03/03 16:51:48  rommel
+# first working version
+#
+# Revision 1.2  1994/03/02 15:43:17  rommel
+# first (empty) prototype
+#
+# Revision 1.1  1994/03/02 14:54:16  rommel
+# Initial revision
+#
+
+CC = cl -nologo -W3 -O
+CFLAGS = -Zep -J -G2sw
+LFLAGS = -link /nod /al:16
+RC = rcwin
+
+OBJ = winaspi.obj
+DEF = winaspi.def
+RES = winaspi.res
+LLIBS = libentry.obj sdllcew.lib libw.lib
+MLIBS = slibcew.lib libw.lib
+
+.SUFFIXES: .c .obj .rc .res
+
+.c.obj:
+	$(CC) $(CFLAGS) -c $<
+
+.rc.res:
+	$(RC) -r $<
+
+all: winaspi.dll testaspi.exe
+
+winaspi.dll: $(OBJ) $(DEF) $(RES)
+	$(CC) $(OBJ) $(DEF) -o $@@ $(LLIBS) $(LFLAGS)
+	$(RC) $(RES) $@@
+
+winaspi.rc:
+	echo /* */ >winaspi.rc
+
+testaspi.exe: testaspi.obj testaspi.def winaspi.res
+	$(CC) testaspi.obj testaspi.def -o $@@ $(MLIBS) $(LFLAGS)
+	$(RC) winaspi.res $@@
+
+clean:
+	rm -f $(OBJ)
+
+# end of Makefile
+@
+
+
+1.3
+log
+@first working version
+@
+text
+@d9 2
+a10 2
+# $Id: makefile,v 1.2 1994/03/02 15:43:17 rommel Exp rommel $
+# $Revision: 1.2 $
+d13 3
+d31 2
+a32 1
+LIBS = libentry.obj sdllcew.lib libw.lib
+d42 2
+d45 1
+a45 1
+	$(CC) $(OBJ) $(DEF) -o $@@ $(LIBS) $(LFLAGS)
+d50 4
+@
+
+
+1.2
+log
+@first (empty) prototype
+@
+text
+@d9 2
+a10 2
+# $Id: makefile,v 1.1 1994/03/02 14:54:16 rommel Exp rommel $
+# $Revision: 1.1 $
+d13 3
+d20 1
+a20 1
+CC = cl -nologo -Zi -Od
+d41 3
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d9 2
+a10 2
+# $Id$
+# $Revision$
+d12 4
+a15 1
+# $Log$
+d25 1
+a25 1
+LIBS = slibcew.lib
+@

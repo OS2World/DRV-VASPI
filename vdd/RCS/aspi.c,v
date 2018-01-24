@@ -1,0 +1,598 @@
+head	1.9;
+access;
+symbols
+	release3:1.8
+	release2:1.6
+	release1:1.6;
+locks; strict;
+comment	@ * @;
+
+
+1.9
+date	94.04.20.11.54.13;	author rommel;	state Exp;
+branches;
+next	1.8;
+
+1.8
+date	94.03.29.16.10.05;	author rommel;	state Exp;
+branches;
+next	1.7;
+
+1.7
+date	94.03.09.17.29.12;	author rommel;	state Exp;
+branches;
+next	1.6;
+
+1.6
+date	94.02.04.17.43.31;	author rommel;	state release1;
+branches;
+next	1.5;
+
+1.5
+date	94.02.02.13.22.39;	author rommel;	state Exp;
+branches;
+next	1.4;
+
+1.4
+date	94.01.27.12.59.49;	author rommel;	state Exp;
+branches;
+next	1.3;
+
+1.3
+date	94.01.09.20.19.53;	author rommel;	state Exp;
+branches;
+next	1.2;
+
+1.2
+date	93.12.22.18.20.21;	author rommel;	state Exp;
+branches;
+next	1.1;
+
+1.1
+date	93.12.22.13.04.49;	author rommel;	state Exp;
+branches;
+next	;
+
+
+desc
+@virtual ASPI driver for OS/2 2.x
+@
+
+
+1.9
+log
+@fourth release
+@
+text
+@/* aspi.c
+ *
+ * virtual ASPI driver for OS/2 2.x
+ * (C) 1994 ARS Computer und Consulting GmbH
+ *
+ * Author:  Kai Uwe Rommel <rommel@@jonas>
+ * Created: Wed Dec 22 1993
+ */
+ 
+static char *rcsid =
+"$Id: aspi.c,v 1.8 1994/03/29 16:10:05 rommel Exp rommel $";
+static char *rcsrev = "$Revision: 1.8 $";
+
+/* $Log: aspi.c,v $
+/* Revision 1.8  1994/03/29 16:10:05  rommel
+/* third release
+/*
+ * Revision 1.7  1994/03/09 17:29:12  rommel
+ * new version using VDHPushFarCall
+ *
+ * Revision 1.6  1994/02/04 17:43:31  rommel
+ * first release
+ *
+ * Revision 1.5  1994/02/02 13:22:39  rommel
+ * beta release
+ *
+ * Revision 1.4  1994/01/27 12:59:49  rommel
+ * first test release
+ *
+ * Revision 1.3  1994/01/09 20:19:53  rommel
+ * first somewhat working version
+ *
+ * Revision 1.2  1993/12/22  18:20:21  rommel
+ * First stage, simple commands somewhat implemented.
+ *
+ * Revision 1.1  1993/12/22  13:04:49  rommel
+ * Initial revision
+ * */
+
+#include <mvdm.h>
+
+#include "../sdk/os2/aspi.h"
+#include "vaspi.h"
+
+#pragma data_seg(SWAPINSTDATA)
+
+#define MAXSRB   32
+#define NEXT(x)  ((x) == MAXSRB - 1 ? 0 : (x) + 1)
+
+typedef struct { USHORT nOffs; USHORT nSeg; } PSRB;
+static PSRB rpSRB[MAXSRB];
+static int nHead = 0, nTail = 0;
+
+/* Make sure all of the reserved fields are set to zero. */
+/* The HP ScanJet ASPI-based device driver doesn't do that in all cases. */
+
+#define zero(type, ptr, field) \
+    memset(((type) (ptr)) -> field, 0, sizeof(((type) (ptr)) -> field))
+
+#pragma alloc_text(CSWAP_TEXT,EnqueueSRB,DequeueSRB,GetSRB)
+
+BOOL EnqueueSRB(USHORT nSeg, USHORT nOffs)
+{
+  int nNew;
+
+  if ((nNew = NEXT(nHead)) == nTail)
+    return FALSE;
+
+  rpSRB[nHead].nSeg  = nSeg;
+  rpSRB[nHead].nOffs = nOffs;
+
+  if (nHead == nTail) /* queue was empty until now */
+    VDHArmTimerHook(hTimerHook, 10, owner_VDM);
+
+  nHead = nNew;
+
+  return TRUE;
+}
+
+BOOL DequeueSRB(void)
+{
+  if (nHead == nTail)
+    return FALSE;
+
+  nTail = NEXT(nTail);
+
+  if (nHead != nTail) /* queue is still not empty */
+    VDHArmTimerHook(hTimerHook, 10, owner_VDM);
+
+  return TRUE;
+}
+
+BOOL GetSRB(PUSHORT pSeg, PUSHORT pOffs)
+{
+  if (nHead == nTail)
+    return FALSE;
+
+  *pSeg  = rpSRB[nTail].nSeg;
+  *pOffs = rpSRB[nTail].nOffs;
+
+  return TRUE;
+}
+
+#pragma alloc_text(CSWAP_TEXT,NativeASPI,VirtualASPI)
+
+BOOL NativeASPI(NPASPI_SRB_HEADER pSRB, ULONG nSRBSize,
+		PVOID pData, ULONG nDataSize)
+{
+  static ULONG ulParmLengthInOut, ulDataLengthInOut;
+
+  ulParmLengthInOut = nSRBSize;
+  ulDataLengthInOut = nDataSize;
+
+  return VDHDevIOCtl(hASPI, ASPI_VDDREQ, pSRB -> CommandCode,
+		     pSRB, nSRBSize, &ulParmLengthInOut,
+		     pData, nDataSize, &ulDataLengthInOut) != 0;
+}
+
+BOOL HOOKENTRY VirtualASPI(PVOID pHookData, PCRF pcrf)
+{
+  ASPI_SRB_HEADER *pSRB;
+  ASPI_SRB_EXECUTE_IO SaveSRB;
+  PCHAR pData;
+  ULONG nData, nSRB;
+  BOOL bOk = TRUE;
+
+  VDHPopInt();                          /* to prevent ROM code execution   */
+
+  pSRB = PFROMVADDR(ES(pcrf), BX(pcrf));
+  pSRB -> ASPIStatus = ASPI_STATUS_INVALID_COMMAND; /* default response */
+
+  if (!bASPIAvailable)
+    return TRUE;
+
+  /* vdhInt3(); */
+
+  switch (pSRB -> CommandCode)
+  {
+
+  case ASPI_CMD_ADAPTER_INQUIRY:
+    zero(PASPI_SRB_INQUIRY, pSRB, Reserved_1);
+    bOk = NativeASPI(pSRB, sizeof(ASPI_SRB_INQUIRY), NULL, 0);
+    break;
+
+  case ASPI_CMD_GET_DEVICE_TYPE:
+    zero(PASPI_SRB_DEVICE_TYPE, pSRB, Reserved_1);
+    bOk = NativeASPI(pSRB, sizeof(ASPI_SRB_DEVICE_TYPE), NULL, 0);
+    break;
+
+  case ASPI_CMD_EXECUTE_IO:
+
+    zero(PASPI_SRB_EXECUTE_IO, pSRB, Reserved_1);
+    zero(PASPI_SRB_EXECUTE_IO, pSRB, ASPIWorkSpace);
+
+    pData = PFROMVP(((ASPI_SRB_EXECUTE_IO *) pSRB) -> ppDataBuffer);
+    nData = ((ASPI_SRB_EXECUTE_IO *) pSRB) -> DataXferLen;
+
+    nSRB = sizeof(ASPI_SRB_EXECUTE_IO);
+    nSRB += ((ASPI_SRB_EXECUTE_IO *) pSRB) -> SCSICDBLen;
+    nSRB += ((ASPI_SRB_EXECUTE_IO *) pSRB) -> SenseDataLen;
+
+    /* save a copy of the SRB */
+    SaveSRB = * (ASPI_SRB_EXECUTE_IO *) pSRB;
+
+    if (nData)
+    {
+      /* tests indicate that we apparently have to double buffer
+       * the transfer memory region 
+       */
+      memcpy(pBuffer, pData, nData);
+      bOk = NativeASPI(pSRB, nSRB, pBuffer, nData);
+      memcpy(pData, pBuffer, nData);
+    }
+    else
+      bOk = NativeASPI(pSRB, nSRB, 0, 0);
+
+    /* these fields were altered by VASPIDD and should be restored */
+    ((ASPI_SRB_EXECUTE_IO *) pSRB) -> ppDataBuffer   = SaveSRB.ppDataBuffer;
+    ((ASPI_SRB_EXECUTE_IO *) pSRB) -> ppSRB          = SaveSRB.ppSRB;
+    ((ASPI_SRB_EXECUTE_IO *) pSRB) -> PM_PostAddress = SaveSRB.PM_PostAddress;
+    ((ASPI_SRB_EXECUTE_IO *) pSRB) -> PM_DataSeg     = SaveSRB.PM_DataSeg;
+
+    break;
+
+  case ASPI_CMD_ABORT_IO:
+    zero(PASPI_SRB_ABORT_IO, pSRB, Reserved_1);
+    bOk = NativeASPI(pSRB, sizeof(ASPI_SRB_ABORT_IO), NULL, 0);
+    break;
+
+  case ASPI_CMD_RESET_DEVICE:
+    zero(PASPI_SRB_RESET_DEVICE, pSRB, Reserved_1);
+    zero(PASPI_SRB_RESET_DEVICE, pSRB, Reserved_2);
+    zero(PASPI_SRB_RESET_DEVICE, pSRB, ASPIWorkSpace);
+    bOk = NativeASPI(pSRB, sizeof(ASPI_SRB_RESET_DEVICE), NULL, 0);
+    break;
+
+  case ASPI_CMD_SET_ADAPTER_PARMS:
+    zero(PASPI_SRB_ADAPTER_PARMS, pSRB, Reserved_1);
+    bOk = NativeASPI(pSRB, sizeof(ASPI_SRB_ADAPTER_PARMS), NULL, 0);
+    break;
+
+  default:
+    pSRB -> ASPIStatus = ASPI_STATUS_INVALID_COMMAND;
+    break;
+  }
+
+  if (!bOk && pSRB -> ASPIStatus == ASPI_STATUS_IN_PROGRESS)
+    pSRB -> ASPIStatus = ASPI_STATUS_ABORTED;
+
+  if (pSRB -> ASPIReqFlags & ASPI_REQFLAG_POST_ENABLE)
+    EnqueueSRB(ES(pcrf), BX(pcrf));
+
+  return TRUE;                                  /* claimed the interrupt   */
+}
+
+#pragma alloc_text(CSWAP_TEXT,PostTimer,PostReturn)
+
+BOOL HOOKENTRY PostTimer(PVOID pHookData, PCRF pcrf)
+{
+  static USHORT nSeg, nOffs;
+
+  /* vdhInt3(); */
+
+  GetSRB(&nSeg, &nOffs);
+
+  VDHArmReturnHook(hRetHook, VDHARH_CSEIP_HOOK);
+  VDHPushRegs(VDHREG_AX | VDHREG_BX | VDHREG_CX);
+
+  AX(pcrf) = MPLEX_POST;
+  BX(pcrf) = nOffs;
+  CX(pcrf) = nSeg;
+
+  VDHPushInt(MPLEX);
+
+  return TRUE;
+}
+
+BOOL HOOKENTRY PostReturn(PVOID pHookData, PCRF pcrf)
+{
+  /* vdhInt3(); */
+
+  VDHPopRegs(VDHREG_AX | VDHREG_BX | VDHREG_CX);
+
+  DequeueSRB();
+
+  return TRUE;
+}
+
+/* end of aspi.c */
+@
+
+
+1.8
+log
+@third release
+@
+text
+@d11 2
+a12 2
+"$Id: aspi.c,v 1.7 1994/03/09 17:29:12 rommel Exp rommel $";
+static char *rcsrev = "$Revision: 1.7 $";
+d15 3
+a42 2
+#define ASPI_REQ 0x80
+
+d114 1
+a114 1
+  return VDHDevIOCtl(hASPI, ASPI_REQ + 1, pSRB -> CommandCode,
+d130 4
+@
+
+
+1.7
+log
+@new version using VDHPushFarCall
+@
+text
+@d11 2
+a12 2
+"$Id: aspi.c,v 1.6 1994/02/04 17:43:31 rommel release1 rommel $";
+static char *rcsrev = "$Revision: 1.6 $";
+d15 3
+d46 2
+a47 4
+static ULONG ulParmLengthInOut, ulDataLengthInOut;
+
+static struct { USHORT nOffs; USHORT nSeg; } rpSRB;
+static FPFN PostAddr;
+d49 3
+a51 2
+#pragma data_seg(CSWAP_DATA)
+#pragma alloc_text(CSWAP_TEXT,VASPI)
+d59 46
+d108 2
+d206 1
+a206 5
+  {
+    rpSRB.nOffs = BX(pcrf);
+    rpSRB.nSeg  = ES(pcrf);
+    VDHArmTimerHook(hTimerHook, 2, owner_VDM);
+  }
+d211 2
+d215 1
+a215 1
+  ASPI_SRB_EXECUTE_IO *pSRB;
+d217 1
+a217 1
+  pSRB = PFROMVADDR(rpSRB.nSeg, rpSRB.nOffs);
+d219 1
+a219 1
+  vdhInt3();
+a220 1
+  VDHPushStack(sizeof(rpSRB), &rpSRB);
+d222 5
+d228 1
+a228 3
+  SEGMENTOF32(PostAddr) = SEGMENTOF16(pSRB -> RM_PostAddress);
+  OFFSETOF32(PostAddr)  = OFFSETOF16(pSRB -> RM_PostAddress);
+  VDHPushFarCall(PostAddr);
+d235 3
+a237 1
+  vdhInt3();
+d239 1
+a239 1
+  VDHPopStack(sizeof(rpSRB), &rpSRB);
+@
+
+
+1.6
+log
+@first release
+@
+text
+@d11 2
+a12 2
+"$Id: aspi.c,v 1.5 1994/02/02 13:22:39 rommel Exp rommel $";
+static char *rcsrev = "$Revision: 1.5 $";
+d15 3
+d45 3
+d155 7
+d163 27
+@
+
+
+1.5
+log
+@beta release
+@
+text
+@d11 2
+a12 2
+"$Id: aspi.c,v 1.4 1994/01/27 12:59:49 rommel Exp rommel $";
+static char *rcsrev = "$Revision: 1.4 $";
+d15 3
+a31 1
+#include "vaspi.h"
+d36 2
+d40 2
+a53 1
+  static ULONG ulParmLengthInOut, ulDataLengthInOut;
+d65 1
+d101 3
+d115 6
+@
+
+
+1.4
+log
+@first test release
+@
+text
+@d4 1
+a4 1
+ * (C) 1993 ARS Computer und Consulting GmbH
+d11 2
+a12 2
+"$Id: aspi.c,v 1.3 1994/01/09 20:19:53 rommel Exp rommel $";
+static char *rcsrev = "$Revision: 1.3 $";
+d15 3
+d39 6
+d60 2
+a61 2
+  PVOID pData;
+  ULONG nData;
+d74 1
+a74 2
+    * (ULONG *) (pSRB + 1) = 0; /* make sure the reserved field is set to zero */
+    /* the HP ScanJet ASPI driver doesn't do that, so we must here */
+d79 1
+d85 3
+d91 12
+a102 4
+    if (nData == 0 || pData == NULL)
+    {                /* if only one is zero, set the other one to zero too */
+      nData = 0;                   /* because of bug in NovaBack */
+      pData = NULL;
+d104 2
+a105 2
+
+    bOk = NativeASPI(pSRB, sizeof(ASPI_SRB_EXECUTE_IO), pData, nData);
+d110 1
+d115 3
+d122 1
+@
+
+
+1.3
+log
+@first somewhat working version
+@
+text
+@d11 2
+a12 2
+"$Id: aspi.c,v 1.2 1993/12/22 18:20:21 rommel Exp rommel $";
+static char *rcsrev = "$Revision: 1.2 $";
+d15 3
+d29 1
+a29 1
+#define ASPI_REQ 0x81
+d36 2
+a37 2
+BOOL DevIOCtl(PVOID pData, USHORT cbData, PVOID pParms, USHORT cbParms,
+	      USHORT usFunction, USHORT usCategory, HFILE hDevice)
+d40 2
+a41 6
+  ulParmLengthInOut = cbParms;
+  ulDataLengthInOut = cbData;
+  return (VDHDevIOCtl(hDevice, usCategory, usFunction,
+		      pParms, cbParms, &ulParmLengthInOut,
+		      pData, cbData, &ulDataLengthInOut) > 0);
+}
+d43 3
+a45 5
+VOID NativeASPI(NPASPI_SRB_HEADER pSRB, ULONG nSRBSize,
+		PVOID pData, ULONG nDataSize)
+{
+  DevIOCtl(pData, nDataSize, pSRB, nSRBSize, 
+	   pSRB -> CommandCode, ASPI_REQ, hASPI);
+d53 1
+a54 1
+  vdhInt3();
+d59 2
+d63 1
+d67 1
+a67 1
+    NativeASPI(pSRB, sizeof(ASPI_SRB_INQUIRY), NULL, 0);
+d69 1
+d71 1
+a71 1
+    NativeASPI(pSRB, sizeof(ASPI_SRB_DEVICE_TYPE), NULL, 0);
+d73 1
+d75 1
+d78 9
+a86 1
+    NativeASPI(pSRB, sizeof(ASPI_SRB_EXECUTE_IO), pData, nData);
+d88 1
+d90 1
+a90 1
+    NativeASPI(pSRB, sizeof(ASPI_SRB_ABORT_IO), NULL, 0);
+d92 1
+d94 1
+a94 1
+    NativeASPI(pSRB, sizeof(ASPI_SRB_RESET_DEVICE), NULL, 0);
+d96 1
+d98 1
+a98 1
+    NativeASPI(pSRB, sizeof(ASPI_SRB_ADAPTER_PARMS), NULL, 0);
+d100 1
+d105 3
+@
+
+
+1.2
+log
+@First stage, simple commands somewhat implemented.
+@
+text
+@d11 2
+a12 2
+"$Id: aspi.c,v 1.1 1993/12/22 13:04:49 rommel Exp rommel $";
+static char *rcsrev = "$Revision: 1.1 $";
+d15 3
+d24 3
+a26 1
+#include "sdk/os2/aspi.h"
+d44 2
+a45 1
+VOID NativeASPI(NPASPI_SRB_HEADER pSRB, ULONG nSRBSize)
+d47 2
+a48 1
+  DevIOCtl(NULL, 0, pSRB, nSRBSize, 0, ASPI_REQ, hASPI);
+d54 2
+d65 3
+a67 1
+    NativeASPI(pSRB, sizeof(ASPI_SRB_INQUIRY));
+d70 1
+a70 1
+    NativeASPI(pSRB, sizeof(ASPI_SRB_DEVICE_TYPE));
+d73 3
+a75 1
+    pSRB -> ASPIStatus = ASPI_STATUS_INVALID_COMMAND;
+d78 1
+a78 1
+    pSRB -> ASPIStatus = ASPI_STATUS_INVALID_COMMAND;
+d81 1
+a81 1
+    pSRB -> ASPIStatus = ASPI_STATUS_INVALID_COMMAND;
+d84 1
+a84 1
+    NativeASPI(pSRB, sizeof(ASPI_SRB_DEVICE_TYPE));
+@
+
+
+1.1
+log
+@Initial revision
+@
+text
+@d11 2
+a12 2
+"$Id$";
+static char *rcsrev = "$Revision$";
+d14 4
+a17 1
+/* $Log$ */
+d21 1
+d28 2
+a29 1
+BOOL HOOKENTRY VASPI(PVOID pHookData, PCRF pcrf)
+d31 17
+d50 28
+@
